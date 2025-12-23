@@ -5,7 +5,7 @@ import math
 from dataclasses import dataclass
 from typing import Literal, Tuple, Union, overload
 
-from .types import GridSquare, LocatorLike
+from .mh_types import GridSquare, LocatorLike
 
 # Mean Earth radius in km (IUGG recommended mean radius)
 EARTH_RADIUS_KM: float = 6371.0088

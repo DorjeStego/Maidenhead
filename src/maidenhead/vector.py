@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Iterator, List, Optional, Sequence, Tuple, Union, overload
 
-from .types import GridSquare, LocatorLike, validate_precision
+from .mh_types import GridSquare, LocatorLike, validate_precision
 from .core import from_latlon, to_bbox, to_center_latlon
 
 

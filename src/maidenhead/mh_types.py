@@ -1,4 +1,4 @@
-# Maidenhead/types.py
+# maidenhead/mh_types.py
 
 from __future__ import annotations
 

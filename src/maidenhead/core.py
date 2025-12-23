@@ -6,7 +6,7 @@ from typing import Iterable, Iterator, List, Sequence, Tuple, Union, overload
 
 from . import constants as C
 from .errors import InvalidLocatorError, OutOfRangeError, PrecisionError, require
-from .types import GridSquare, LocatorLike, validate_precision
+from .mh_types import GridSquare, LocatorLike, validate_precision
 
 
 def precision_of(locator: str | GridSquare) -> int:
