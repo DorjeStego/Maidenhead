@@ -25,7 +25,7 @@ except PackageNotFoundError:  # pragma: no cover (common in editable/dev mode)
 
 # ---- Public types/exceptions ----
 from .errors import MaidenheadError, InvalidLocatorError, OutOfRangeError, PrecisionError
-from .types import GridSquare
+from .mh_types import GridSquare
 
 # ---- Core API ----
 from .core import (
