@@ -1,30 +1,27 @@
-diff --git a/pyproject.toml b/pyproject.toml
-new file mode 100644
-index 0000000000000000000000000000000000000000..451f7a593c9a11666f51fea8b293acffaa79f598
---- /dev/null
-+++ b/pyproject.toml
-@@ -0,0 +1,24 @@
-+[build-system]
-+requires = ["setuptools>=61", "wheel"]
-+build-backend = "setuptools.build_meta"
-+
-+[project]
-+name = "maidenhead"
-+version = "0.1.0.dev0"
-+description = "A Python library for working with Maidenhead grid squares, geographic locators used mainly in Amateur Radio."
-+readme = "README.md"
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "maidenhead"
+version = "0.1.0.dev0"
+description = "A Python library for working with Maidenhead grid squares, geographic locators used mainly in Amateur Radio."
+readme = "README.md"
 requires-python = ">=3.8"
-authors = [{ name = "Maidenhead contributors" }]
+authors = [{ name = "Ben Owen (2E0XPQ)" }]
 classifiers = [
   "Programming Language :: Python :: 3",
 ]
-urls = { "Repository" = "https://example.com/maidenhead" }
+urls = { "Repository" = "https://github.com/DorjeStego/Maidenhead" }
 
 [project.scripts]
-mh = "maidenhead.cli:main"
+mh = "maidenhead.cli:development"
 
 [tool.setuptools]
-packages = ["maidenhead"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
 maidenhead = ["py.typed"]
