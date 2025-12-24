@@ -1,6 +1,18 @@
 # maidenhead/errors.py
 from __future__ import annotations
 
+from typing import Type, Union
+
+__all__ = [
+    "MaidenheadError",
+    "PrecisionError",
+    "InvalidLocatorError",
+    "OutOfRangeError",
+    "UnsupportedError",
+    "MissingDependencyError",
+    "require",
+]
+
 
 class MaidenheadError(Exception):
     """
@@ -46,7 +58,11 @@ class MissingDependencyError(MaidenheadError, ImportError):
     """
 
 
-def require(condition: bool, exc: type[Exception], message: str) -> None:
+ExceptionType = Type[Exception]
+ExceptionLike = Union[ExceptionType, Exception]
+
+
+def require(condition: bool, exc: ExceptionLike, message: str) -> None:
     """
     Tiny internal helper to keep core code readable.
 
@@ -54,4 +70,6 @@ def require(condition: bool, exc: type[Exception], message: str) -> None:
         require(len(locator) % 2 == 0, PrecisionError, "precision must be even")
     """
     if not condition:
+        if isinstance(exc, Exception):
+            raise exc
         raise exc(message)
