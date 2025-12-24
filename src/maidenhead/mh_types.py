@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import total_ordering
+import math
 from typing import Iterable, Iterator, Optional, Sequence, Union, overload
 
 from .errors import InvalidLocatorError, PrecisionError
+from .geo import EARTH_RADIUS_KM
 
 LocatorLike = Union[str, "GridSquare"]
 
@@ -93,6 +96,7 @@ def iter_tokens(locator: str) -> Iterator[LocatorToken]:
         )
 
 
+@total_ordering
 @dataclass(frozen=True, slots=True)
 class GridSquare:
     """
@@ -136,6 +140,11 @@ class GridSquare:
     def __len__(self) -> int:
         return self.precision
 
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, GridSquare):
+            return NotImplemented
+        return self.locator < other.locator
+
     # ---- Convenience constructors ----
 
     @classmethod
@@ -159,6 +168,52 @@ class GridSquare:
         """(min_lat, min_lon, max_lat, max_lon) bounding box of this grid cell."""
         from .core import to_bbox  # lazy import
         return to_bbox(self)
+
+    @property
+    def pairs(self) -> list[str]:
+        """List of 2-character locator pairs."""
+        return [self.locator[i : i + 2] for i in range(0, self.precision, 2)]
+
+    @property
+    def field(self) -> str:
+        """First (field) pair."""
+        return self.locator[0:2]
+
+    @property
+    def square(self) -> Optional[str]:
+        """Second (square) pair, if present."""
+        return self.locator[2:4] if self.precision >= 4 else None
+
+    @property
+    def subsquare(self) -> Optional[str]:
+        """Third (subsquare) pair, if present."""
+        return self.locator[4:6] if self.precision >= 6 else None
+
+    @property
+    def ext4(self) -> Optional[str]:
+        """Fourth (extended digits) pair, if present."""
+        return self.locator[6:8] if self.precision >= 8 else None
+
+    @property
+    def ext5(self) -> Optional[str]:
+        """Fifth (extended letters) pair, if present."""
+        return self.locator[8:10] if self.precision >= 10 else None
+
+    @property
+    def size_km_lat(self) -> float:
+        """North-south size in kilometers."""
+        from .core import cell_size  # lazy import
+        return cell_size(self, unit="km")[1]
+
+    def size_km_lon_at(self, lat: float) -> float:
+        """
+        East-west size in kilometers at a given latitude.
+
+        Uses a parallel-distance approximation based on degrees of longitude.
+        """
+        from .core import cell_size  # lazy import
+        lon_deg = cell_size(self, unit="deg")[0]
+        return (math.cos(math.radians(lat)) * lon_deg * 2.0 * math.pi * EARTH_RADIUS_KM) / 360.0
 
     # ---- Topology helpers (delegated to core) ----
 

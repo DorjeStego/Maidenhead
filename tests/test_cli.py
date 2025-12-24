@@ -36,6 +36,22 @@ def test_cli_from_latlon_single_arg(capsys):
     assert captured.out.strip() == "IO83ri"
 
 
+def test_cli_parts_output(capsys, valid_locators):
+    loc = valid_locators[0]
+    code = main(["parts", loc])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "field=" in captured.out
+
+
+def test_cli_size_output(capsys, valid_locators):
+    loc = valid_locators[0]
+    code = main(["size", loc, "--unit", "km", "--csv"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip().count(",") == 1
+
+
 def test_cli_validate_invalid(invalid_locators):
     for loc in invalid_locators:
         code = main(["validate", loc])

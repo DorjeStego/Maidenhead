@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Literal, Tuple, Union, overload
+from typing import TYPE_CHECKING, Literal, Tuple, Union, overload
 
 from .errors import MissingDependencyError
-from .mh_types import GridSquare, LocatorLike
+if TYPE_CHECKING:
+    from .mh_types import GridSquare, LocatorLike
+else:
+    LocatorLike = Union[str, object]
 
 # Mean Earth radius in km (IUGG recommended mean radius)
 EARTH_RADIUS_KM: float = 6371.0088
@@ -42,6 +45,7 @@ def _resolve_point(p: PointLike) -> tuple[float, float]:
     """
     Resolve a PointLike (locator/GridSquare/(lat,lon)) to (lat, lon) in degrees.
     """
+    from .mh_types import GridSquare
     if isinstance(p, GridSquare):
         from .core import to_center_latlon
         return to_center_latlon(p)

@@ -7,6 +7,7 @@ from typing import Sequence
 
 from . import __version__
 from .core import (
+    cell_size,
     from_latlon,
     normalize,
     parse,
@@ -72,6 +73,27 @@ def build_parser() -> argparse.ArgumentParser:
     p_bbox = sub.add_parser("bbox", help="Print bbox for a locator: min_lat min_lon max_lat max_lon.")
     p_bbox.add_argument("locator", help="Maidenhead locator")
     _add_common_args(p_bbox)
+
+    # parts
+    p_parts = sub.add_parser("parts", help="Print locator components (field/square/subsquare/etc).")
+    p_parts.add_argument("locator", help="Maidenhead locator")
+
+    # size
+    p_size = sub.add_parser("size", help="Print cell size (width height).")
+    p_size.add_argument("locator", help="Maidenhead locator")
+    p_size.add_argument(
+        "--unit",
+        choices=["deg", "km", "miles"],
+        default="deg",
+        help="Unit for output (default: deg).",
+    )
+    p_size.add_argument(
+        "--lon-at",
+        type=float,
+        default=None,
+        help="Latitude for computing east-west size along the parallel (km/miles only).",
+    )
+    _add_common_args(p_size)
 
     # from-latlon
     p_fll = sub.add_parser("from-latlon", help="Convert lat/lon to a locator.")
@@ -182,6 +204,37 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"{_fmt_float(min_lat, args.digits)}{sep}{_fmt_float(min_lon, args.digits)}"
                 f"{sep}{_fmt_float(max_lat, args.digits)}{sep}{_fmt_float(max_lon, args.digits)}"
             )
+            return 0
+
+        if args.cmd == "parts":
+            g = parse(args.locator)
+            parts = [f"field={g.field}"]
+            if g.square:
+                parts.append(f"square={g.square}")
+            if g.subsquare:
+                parts.append(f"subsquare={g.subsquare}")
+            if g.ext4:
+                parts.append(f"ext4={g.ext4}")
+            if g.ext5:
+                parts.append(f"ext5={g.ext5}")
+            print(" ".join(parts))
+            return 0
+
+        if args.cmd == "size":
+            if args.lon_at is None:
+                width, height = cell_size(args.locator, unit=args.unit)
+            else:
+                if args.unit == "deg":
+                    raise ValueError("--lon-at requires --unit km or miles")
+                g = parse(args.locator)
+                width = g.size_km_lon_at(args.lon_at)
+                height = g.size_km_lat
+                if args.unit == "miles":
+                    miles_per_km = 0.621371
+                    width *= miles_per_km
+                    height *= miles_per_km
+            sep = "," if args.csv else " "
+            print(f"{_fmt_float(width, args.digits)}{sep}{_fmt_float(height, args.digits)}")
             return 0
 
         if args.cmd == "from-latlon":
