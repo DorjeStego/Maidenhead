@@ -14,6 +14,7 @@ from maidenhead import (
     neighbors,
     normalize,
     parent,
+    step,
     to_bbox,
     to_center_latlon,
 )
@@ -158,6 +159,21 @@ def test_adjacent_diagonals_matches_neighbors(valid_locators):
     assert set(adj.keys()) == {"N", "S", "E", "W", "NE", "NW", "SE", "SW"}
     all_dirs = {g.locator for g in neighbors(loc, diagonals=True)}
     assert {g.locator for g in adj.values()} <= all_dirs
+
+
+def test_step_matches_adjacent(valid_locators):
+    rng = random.Random(16)
+    loc = rng.choice(valid_locators)
+    adj = adjacent(loc, diagonals=False)
+    assert step(loc, dlat_cells=1).locator == adj["N"].locator
+    assert step(loc, dlat_cells=-1).locator == adj["S"].locator
+    assert step(loc, dlon_cells=1).locator == adj["E"].locator
+    assert step(loc, dlon_cells=-1).locator == adj["W"].locator
+
+
+def test_step_zero_returns_same(valid_locators):
+    loc = valid_locators[0]
+    assert step(loc).locator == normalize(loc)
 
 
 def test_contains_parent_child(valid_locators):

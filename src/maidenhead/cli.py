@@ -11,6 +11,7 @@ from .core import (
     from_latlon,
     normalize,
     parse,
+    step,
     to_bbox,
     to_center_latlon,
 )
@@ -94,6 +95,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Latitude for computing east-west size along the parallel (km/miles only).",
     )
     _add_common_args(p_size)
+
+    # step
+    p_step = sub.add_parser("step", help="Move a locator by a number of cells.")
+    p_step.add_argument("locator", help="Maidenhead locator")
+    p_step.add_argument("--dlat-cells", type=int, default=0, help="Cells to move north/south.")
+    p_step.add_argument("--dlon-cells", type=int, default=0, help="Cells to move east/west.")
 
     # from-latlon
     p_fll = sub.add_parser("from-latlon", help="Convert lat/lon to a locator.")
@@ -235,6 +242,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     height *= miles_per_km
             sep = "," if args.csv else " "
             print(f"{_fmt_float(width, args.digits)}{sep}{_fmt_float(height, args.digits)}")
+            return 0
+
+        if args.cmd == "step":
+            g = step(args.locator, dlat_cells=args.dlat_cells, dlon_cells=args.dlon_cells)
+            print(g.locator)
             return 0
 
         if args.cmd == "from-latlon":

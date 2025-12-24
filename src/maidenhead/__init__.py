@@ -41,6 +41,7 @@ from .core import (
     is_valid,
     neighbors,
     normalize,
+    step,
     parent,
     parse,
     precision_of,
@@ -81,6 +82,7 @@ __all__ = [
     "adjacent",
     "contains",
     "neighbors",
+    "step",
     "parent",
     "children",
     # geo

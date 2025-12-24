@@ -70,6 +70,14 @@ mh size IO83ri --unit km --lon-at 45
 
 mh size IO83ri --unit miles --csv
 
+#### step
+
+Move a locator by a number of grid cells.
+
+mh step IO83ri --dlat-cells 1
+
+mh step IO83ri --dlon-cells -2
+
 #### from-latlon
 
 Convert latitude/longitude to a locator.

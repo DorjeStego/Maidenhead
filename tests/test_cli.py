@@ -1,6 +1,6 @@
 import random
 
-from maidenhead import normalize
+from maidenhead import normalize, step
 from maidenhead.cli import main
 
 
@@ -50,6 +50,14 @@ def test_cli_size_output(capsys, valid_locators):
     captured = capsys.readouterr()
     assert code == 0
     assert captured.out.strip().count(",") == 1
+
+
+def test_cli_step_output(capsys, valid_locators):
+    loc = valid_locators[0]
+    code = main(["step", loc, "--dlat-cells", "1"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip() == step(loc, dlat_cells=1).locator
 
 
 def test_cli_validate_invalid(invalid_locators):

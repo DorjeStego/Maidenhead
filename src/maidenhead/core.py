@@ -625,6 +625,30 @@ def adjacent(locator: LocatorLike, *, diagonals: bool = False) -> dict[str, Grid
     return out
 
 
+def step(locator: LocatorLike, *, dlat_cells: int = 0, dlon_cells: int = 0) -> GridSquare:
+    """
+    Move by a number of cells in latitude/longitude directions.
+
+    Positive dlat_cells moves north, positive dlon_cells moves east.
+    """
+    require(isinstance(dlat_cells, int), ValueError, "dlat_cells must be int", dlat_cells=dlat_cells)
+    require(isinstance(dlon_cells, int), ValueError, "dlon_cells must be int", dlon_cells=dlon_cells)
+
+    s = _coerce_locator_text(locator)
+    s = normalize(s)
+    p = len(s)
+
+    min_lat, min_lon, max_lat, max_lon = to_bbox(s)
+    dlat = (max_lat - min_lat)
+    dlon = (max_lon - min_lon)
+    clat, clon = to_center_latlon(s)
+
+    lat2 = clat + dlat_cells * dlat
+    lon2 = _normalize_lon(clon + dlon_cells * dlon)
+    lat2 = _clamp_lat(lat2)
+    return from_latlon(lat2, lon2, precision=p, clamp=True)
+
+
 def contains(outer: LocatorLike, inner: LocatorLike) -> bool:
     """
     Return True if inner's cell is fully within outer's cell.
