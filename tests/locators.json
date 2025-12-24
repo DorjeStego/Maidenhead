@@ -1,0 +1,286 @@
+{
+  "valid_locators": {
+    "2": {
+      "europe": [
+        "IO",
+        "JO",
+        "KN"
+      ],
+      "north_america": [
+        "FN",
+        "EM",
+        "CM"
+      ],
+      "brazil": [
+        "GG",
+        "FH"
+      ],
+      "china": [
+        "OM",
+        "PN"
+      ],
+      "japan": [
+        "PM",
+        "QM"
+      ],
+      "australia": [
+        "QF",
+        "RG"
+      ],
+      "global": [
+        "AA",
+        "RR",
+        "JJ",
+        "AF",
+        "AL",
+        "AO",
+        "BI",
+        "CE",
+        "DJ",
+        "EK",
+        "FI",
+        "GA",
+        "HK",
+        "IL",
+        "JN",
+        "KK",
+        "KL",
+        "LM",
+        "MP",
+        "NO",
+        "OJ",
+        "PF",
+        "QG",
+        "QH",
+        "RJ",
+        "RK"
+      ]
+    },
+    "4": {
+      "europe": [
+        "JO02",
+        "KN05"
+      ],
+      "north_america": [
+        "FN31",
+        "EM48",
+        "CM87"
+      ],
+      "brazil": [
+        "GG47",
+        "FH16"
+      ],
+      "china": [
+        "OM89",
+        "PN29"
+      ],
+      "japan": [
+        "PM95",
+        "QM06"
+      ],
+      "australia": [
+        "QF56",
+        "RG30"
+      ],
+      "global": [
+        "IO83",
+        "AA00",
+        "RR99",
+        "JJ05",
+        "AF12",
+        "AL33",
+        "AO44",
+        "BI60",
+        "CE72",
+        "DJ53",
+        "EK02",
+        "FI14",
+        "GA66",
+        "HK94",
+        "IL28",
+        "JN58",
+        "KK07",
+        "KL98",
+        "LM45",
+        "MP21",
+        "NO75",
+        "OJ33",
+        "PF29",
+        "QG55",
+        "QH88",
+        "RJ03",
+        "RK12"
+      ]
+    },
+    "6": {
+      "europe": [
+        "IO91wm",
+        "JO02mk",
+        "KN05bg"
+      ],
+      "north_america": [
+        "FN31pr",
+        "EM48tx",
+        "CM87wk"
+      ],
+      "brazil": [
+        "GG47wk",
+        "FH16ab"
+      ],
+      "china": [
+        "OM89ab",
+        "PN29cd"
+      ],
+      "japan": [
+        "PM95ke",
+        "QM06aa"
+      ],
+      "australia": [
+        "QF56od",
+        "RG30aa"
+      ],
+      "global": [
+        "IO83ri",
+        "AA00aa",
+        "RR99xx",
+        "JJ05ae",
+        "AF12bm",
+        "AL33gx",
+        "AO44mq",
+        "BI60ps",
+        "CE72kt",
+        "DJ53fv",
+        "EK02hc",
+        "FI14ld",
+        "GA66re",
+        "HK94ap",
+        "IL28tc",
+        "JN58sd",
+        "KK07nl",
+        "KL98aq",
+        "LM45wt",
+        "NO75hb",
+        "OJ33fx",
+        "PF29as",
+        "QG55nv",
+        "QH88jr",
+        "RJ03bo",
+        "RK12el"
+      ]
+    },
+    "8": {
+      "europe": [
+        "IO91wm34",
+        "JO02mk51",
+        "KN05bg90"
+      ],
+      "north_america": [
+        "EM48tx34",
+        "CM87wk56",
+        "FN31pr45"
+      ],
+      "brazil": [
+        "GG47wk78",
+        "FH16ab12"
+      ],
+      "china": [
+        "OM89ab12",
+        "PN29cd34"
+      ],
+      "japan": [
+        "PM95ke12",
+        "QM06aa34"
+      ],
+      "australia": [
+        "QF56od78",
+        "RG30aa12"
+      ],
+      "global": [
+        "IO83ri12",
+        "AA00aa00",
+        "RR99xx99",
+        "JJ05ae78",
+        "AF12bm34",
+        "AL33gx78",
+        "AO44mq12",
+        "BI60ps56",
+        "CE72kt90",
+        "DJ53fv11",
+        "EK02hc22",
+        "FI14ld33",
+        "GA66re44",
+        "HK94ap55",
+        "IL28tc66",
+        "JN58sd77",
+        "KK07nl88",
+        "KL98aq99",
+        "LM45wt01",
+        "NO75hb45",
+        "OJ33fx67",
+        "PF29as89",
+        "QG55nv10",
+        "QH88jr32",
+        "RJ03bo54",
+        "RK12el76"
+      ]
+    }
+  },
+  "invalid_locators": {
+    "length": [
+      "I",
+      "IO8",
+      "FN3",
+      "IO83r",
+      "IO83ri1",
+      "FN31pr4",
+      "IO83ri123",
+      "FN31pr4567"
+    ],
+    "invalid_field": [
+      "SZ",
+      "ZZ",
+      "TQ",
+      "SR",
+      "RU",
+      "XA",
+      "YB"
+    ],
+    "invalid_square": [
+      "IO8A",
+      "FN3X",
+      "IO8:",
+      "FN3;",
+      "AA0O",
+      "JO2/",
+      "KN5."
+    ],
+    "invalid_subsquare": [
+      "IO83ry",
+      "FN31pz",
+      "AA00az",
+      "JO02my",
+      "KN05bz",
+      "EM48ty"
+    ],
+    "invalid_extended": [
+      "IO83ri1a",
+      "FN31pr4x",
+      "AA00aa0y",
+      "JO02mk9q",
+      "QF56od1z"
+    ],
+    "invalid_character": [
+      "IO83r!",
+      "IO83r@",
+      "FN31?1",
+      "AA00aa#"
+    ],
+    "wrong_class": [
+      "I083",
+      "F131",
+      "AA0O",
+      "AA00a1"
+    ],
+    "case_sensitive": []
+  }
+}
