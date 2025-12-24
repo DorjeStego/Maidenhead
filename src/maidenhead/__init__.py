@@ -20,7 +20,7 @@ from importlib.metadata import PackageNotFoundError, version as _pkg_version
 try:
     __version__ = _pkg_version("maidenhead")
 except PackageNotFoundError:  # pragma: no cover (common in editable/dev mode)
-    __version__ = "0.1.0"
+    __version__ = "0.1.0.dev2"
 
 
 # ---- Public types/exceptions ----
@@ -29,8 +29,14 @@ from .mh_types import GridSquare
 
 # ---- Core API ----
 from .core import (
+    adjacent,
+    azimuth,
+    cell_size,
     children,
+    contains,
+    corners,
     from_latlon,
+    initial_bearing,
     is_valid,
     neighbors,
     normalize,
@@ -60,8 +66,14 @@ __all__ = [
     "normalize",
     "precision_of",
     "from_latlon",
+    "initial_bearing",
+    "cell_size",
     "to_center_latlon",
     "to_bbox",
+    "corners",
+    "azimuth",
+    "adjacent",
+    "contains",
     "neighbors",
     "parent",
     "children",

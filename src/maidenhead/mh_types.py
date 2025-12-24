@@ -125,12 +125,12 @@ class GridSquare:
     # ---- Convenience constructors ----
 
     @classmethod
-    def parse(cls, locator: str, *, allow_extended: bool = True) -> "GridSquare":
+    def parse(cls, locator: str) -> "GridSquare":
         """
         Parse and validate a locator string using core.parse(), returning GridSquare.
         """
         from .core import parse as _parse  # lazy to avoid circular import
-        return _parse(locator, allow_extended=allow_extended)
+        return _parse(locator)
 
     # ---- Geometry properties (delegated to core) ----
 

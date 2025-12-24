@@ -47,20 +47,10 @@ def build_parser() -> argparse.ArgumentParser:
     # normalize
     p_norm = sub.add_parser("normalize", help="Normalize locator casing and validate.")
     p_norm.add_argument("locator", help="Maidenhead locator (e.g. IO91wm)")
-    p_norm.add_argument(
-        "--no-extended",
-        action="store_true",
-        help="Disallow extended locators (precision > 6).",
-    )
 
     # validate
     p_val = sub.add_parser("validate", help="Validate a locator. Exit code 0 if valid, 2 if invalid.")
     p_val.add_argument("locator", help="Maidenhead locator (e.g. IO91wm)")
-    p_val.add_argument(
-        "--no-extended",
-        action="store_true",
-        help="Disallow extended locators (precision > 6).",
-    )
 
     # center
     p_center = sub.add_parser("center", help="Print the center lat/lon for a locator.")
@@ -81,17 +71,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--precision",
         type=int,
         default=6,
-        help="Locator precision (character length): 2, 4, 6, 8, ... (default: 6)",
+        help="Locator precision (character length): 2, 4, 6, 8 (default: 6)",
     )
     p_fll.add_argument(
         "--no-clamp",
         action="store_true",
         help="Disable boundary clamping (lat=90/lon=180 will error).",
-    )
-    p_fll.add_argument(
-        "--no-extended",
-        action="store_true",
-        help="Disallow extended locators (precision > 6).",
     )
 
     # distance
@@ -134,7 +119,7 @@ def _parse_point(s: str):
         return (float(parts[0]), float(parts[1]))
 
     # Treat as locator; normalize/validate early for clearer CLI errors.
-    return normalize(txt, allow_extended=True, strict=True)
+    return normalize(txt, strict=True)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -143,13 +128,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         if args.cmd == "normalize":
-            loc = normalize(args.locator, allow_extended=(not args.no_extended), strict=True)
+            loc = normalize(args.locator, strict=True)
             print(loc)
             return 0
 
         if args.cmd == "validate":
             try:
-                _ = normalize(args.locator, allow_extended=(not args.no_extended), strict=True)
+                _ = normalize(args.locator, strict=True)
             except MaidenheadError:
                 # 2 is a common “bad usage / invalid input” exit code.
                 return 2
@@ -174,7 +159,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.lon,
                 precision=args.precision,
                 clamp=(not args.no_clamp),
-                allow_extended=(not args.no_extended),
             )
             print(g.locator)
             return 0
