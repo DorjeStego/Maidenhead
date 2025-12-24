@@ -50,6 +50,26 @@ mh bbox EM12rx --digits 5
 
 mh bbox EM12rx --csv
 
+#### parts
+
+Print locator components (field/square/subsquare/etc).
+
+mh parts IO83ri17
+
+mh parts FN31pr
+
+#### size
+
+Print cell size (width height) for a locator.
+
+mh size IO83ri
+
+mh size IO83ri --unit km
+
+mh size IO83ri --unit km --lon-at 45
+
+mh size IO83ri --unit miles --csv
+
 #### from-latlon
 
 Convert latitude/longitude to a locator.
