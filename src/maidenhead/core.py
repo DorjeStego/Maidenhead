@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from typing import Iterable, Iterator, List, Literal, Sequence, Tuple, Union, overload
+from typing import Callable, Iterable, Iterator, List, Literal, Sequence, Tuple, Union, overload
 
 from . import constants as C
 from .errors import InvalidLocatorError, MaidenheadError, OutOfRangeError, PrecisionError, require
@@ -226,6 +226,85 @@ def to_center_latlon(locator: LocatorLike) -> tuple[float, float]:
     """Return (lat, lon) center of a locator cell."""
     min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
     return ((min_lat + max_lat) / 2.0, _normalize_lon((min_lon + max_lon) / 2.0))
+
+
+def to_geojson_polygon(locator: LocatorLike) -> dict:
+    """
+    Return a GeoJSON Polygon for the locator cell.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    ring = [
+        [min_lon, min_lat],
+        [max_lon, min_lat],
+        [max_lon, max_lat],
+        [min_lon, max_lat],
+        [min_lon, min_lat],
+    ]
+    return {"type": "Polygon", "coordinates": [ring]}
+
+
+def to_geojson_feature(locator: LocatorLike, properties: dict | None = None) -> dict:
+    """
+    Return a GeoJSON Feature for the locator cell.
+    """
+    return {
+        "type": "Feature",
+        "geometry": to_geojson_polygon(locator),
+        "properties": properties or {},
+    }
+
+
+def to_geojson_feature_collection(
+    locators: Sequence[LocatorLike],
+    properties_fn: Callable[[LocatorLike], dict] | None = None,
+) -> dict:
+    """
+    Return a GeoJSON FeatureCollection for locators.
+    """
+    features = []
+    for loc in locators:
+        props = properties_fn(loc) if properties_fn else None
+        features.append(to_geojson_feature(loc, properties=props))
+    return {"type": "FeatureCollection", "features": features}
+
+
+def to_geojson_bbox(locator: LocatorLike) -> list[float]:
+    """
+    Return GeoJSON bbox array [min_lon, min_lat, max_lon, max_lat].
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    return [min_lon, min_lat, max_lon, max_lat]
+
+
+def to_geojson_envelope(locator: LocatorLike) -> dict:
+    """
+    Return a GeoJSON Polygon using the bbox envelope.
+    """
+    bbox = to_geojson_bbox(locator)
+    min_lon, min_lat, max_lon, max_lat = bbox
+    ring = [
+        [min_lon, min_lat],
+        [max_lon, min_lat],
+        [max_lon, max_lat],
+        [min_lon, max_lat],
+        [min_lon, min_lat],
+    ]
+    return {"type": "Polygon", "coordinates": [ring], "bbox": bbox}
+
+def to_wkt(locator: LocatorLike) -> str:
+    """
+    Return a WKT Polygon string for the locator cell.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    ring = [
+        (min_lon, min_lat),
+        (max_lon, min_lat),
+        (max_lon, max_lat),
+        (min_lon, max_lat),
+        (min_lon, min_lat),
+    ]
+    coords = ", ".join(f"{lon} {lat}" for lon, lat in ring)
+    return f"POLYGON(({coords}))"
 
 
 def corners(

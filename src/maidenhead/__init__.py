@@ -47,6 +47,12 @@ from .core import (
     precision_of,
     to_bbox,
     to_center_latlon,
+    to_geojson_polygon,
+    to_geojson_feature,
+    to_geojson_feature_collection,
+    to_geojson_bbox,
+    to_geojson_envelope,
+    to_wkt,
 )
 
 # ---- Geodesy helpers ----
@@ -74,6 +80,12 @@ __all__ = [
     "cell_size",
     "cell_size_many",
     "to_center_latlon",
+    "to_geojson_polygon",
+    "to_geojson_feature",
+    "to_geojson_feature_collection",
+    "to_geojson_bbox",
+    "to_geojson_envelope",
+    "to_wkt",
     "to_center_many",
     "to_bbox",
     "to_bbox_many",

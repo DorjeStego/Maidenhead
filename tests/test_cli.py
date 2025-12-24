@@ -1,4 +1,13 @@
 import random
+import sys
+from io import StringIO
+
+import pytest
+
+try:
+    import orjson  # type: ignore
+except Exception:  # pragma: no cover - optional in local env
+    orjson = None
 
 from maidenhead import normalize, step
 from maidenhead.cli import main
@@ -58,6 +67,40 @@ def test_cli_step_output(capsys, valid_locators):
     captured = capsys.readouterr()
     assert code == 0
     assert captured.out.strip() == step(loc, dlat_cells=1).locator
+
+
+def test_cli_normalize_batch_json_stdin(monkeypatch, capsys):
+    if orjson is None:
+        pytest.skip("orjson not installed")
+    data = "io83ri\nfn31pr\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["normalize", "--stdin", "--format", "json"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert orjson.loads(captured.out.strip()) == ["IO83ri", "FN31pr"]
+
+
+def test_cli_center_batch_csv_file(tmp_path, capsys, valid_locators):
+    locs = valid_locators[:2]
+    file_path = tmp_path / "locs.txt"
+    file_path.write_text("\n".join(locs))
+    code = main(["center", "--file", str(file_path), "--format", "csv", "--digits", "4"])
+    captured = capsys.readouterr()
+    assert code == 0
+    lines = captured.out.strip().splitlines()
+    assert len(lines) == 2
+    assert all("," in line for line in lines)
+
+
+def test_cli_from_latlon_batch_json_stdin(monkeypatch, capsys):
+    if orjson is None:
+        pytest.skip("orjson not installed")
+    data = "53.365418,-2.574069\n52.069654,4.271870\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["from-latlon", "--stdin", "--format", "json"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert orjson.loads(captured.out.strip()) == ["IO83ri", "JO22db"]
 
 
 def test_cli_validate_invalid(invalid_locators):

@@ -16,12 +16,20 @@ from .core import (
     to_center_latlon,
 )
 from .geo import bearing_deg, distance_km, midpoint
-from .errors import MaidenheadError
+from .errors import MaidenheadError, MissingDependencyError
 
 
 def _fmt_float(x: float, digits: int) -> str:
     # Avoid scientific notation for typical coords unless needed.
     return f"{x:.{digits}f}"
+
+
+def _json_dumps(obj: object) -> str:
+    try:
+        import orjson  # type: ignore
+    except Exception as exc:
+        raise MissingDependencyError("JSON output requires orjson") from exc
+    return orjson.dumps(obj).decode("utf-8")
 
 
 def _add_common_args(p: argparse.ArgumentParser) -> None:
@@ -35,6 +43,17 @@ def _add_common_args(p: argparse.ArgumentParser) -> None:
         "--csv",
         action="store_true",
         help="Use comma-separated output instead of spaces.",
+    )
+
+
+def _add_batch_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--file", help="Read input lines from a file.")
+    p.add_argument("--stdin", action="store_true", help="Read input lines from stdin.")
+    p.add_argument(
+        "--format",
+        choices=["plain", "csv", "json"],
+        default="plain",
+        help="Output format for batch mode (default: plain).",
     )
 
 
@@ -53,7 +72,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # normalize
     p_norm = sub.add_parser("normalize", help="Normalize locator casing and validate.")
-    p_norm.add_argument("locator", help="Maidenhead locator (e.g. IO91wm)")
+    p_norm.add_argument("locator", nargs="?", help="Maidenhead locator (e.g. IO91wm)")
+    _add_batch_args(p_norm)
 
     # validate
     p_val = sub.add_parser("validate", help="Validate a locator. Exit code 0 if valid, 2 if invalid.")
@@ -67,13 +87,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     # center
     p_center = sub.add_parser("center", help="Print the center lat/lon for a locator.")
-    p_center.add_argument("locator", help="Maidenhead locator")
+    p_center.add_argument("locator", nargs="?", help="Maidenhead locator")
     _add_common_args(p_center)
+    _add_batch_args(p_center)
 
     # bbox
     p_bbox = sub.add_parser("bbox", help="Print bbox for a locator: min_lat min_lon max_lat max_lon.")
-    p_bbox.add_argument("locator", help="Maidenhead locator")
+    p_bbox.add_argument("locator", nargs="?", help="Maidenhead locator")
     _add_common_args(p_bbox)
+    _add_batch_args(p_bbox)
 
     # parts
     p_parts = sub.add_parser("parts", help="Print locator components (field/square/subsquare/etc).")
@@ -106,9 +128,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_fll = sub.add_parser("from-latlon", help="Convert lat/lon to a locator.")
     p_fll.add_argument(
         "latlon",
-        nargs="+",
+        nargs="*",
         help="Latitude/longitude as 'lat lon' or 'lat,lon'",
     )
+    _add_batch_args(p_fll)
     p_fll.add_argument(
         "-p",
         "--precision",
@@ -176,12 +199,33 @@ def _parse_latlon(args: Sequence[str]) -> tuple[float, float]:
     raise ValueError("Latitude/longitude must be 'lat lon' or 'lat,lon'")
 
 
+def _read_batch_lines(file_path: str | None, use_stdin: bool) -> list[str]:
+    if file_path and use_stdin:
+        raise ValueError("Use only one of --file or --stdin")
+    if file_path:
+        with open(file_path, "r", encoding="utf-8") as handle:
+            return [line.strip() for line in handle if line.strip()]
+    if use_stdin:
+        return [line.strip() for line in sys.stdin if line.strip()]
+    return []
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     try:
         if args.cmd == "normalize":
+            batch = _read_batch_lines(args.file, args.stdin)
+            if batch:
+                out = [normalize(line) for line in batch]
+                if args.format == "json":
+                    print(_json_dumps(out))
+                else:
+                    print("\n".join(out))
+                return 0
+            if args.locator is None:
+                raise ValueError("locator is required unless --file/--stdin is provided")
             loc = normalize(args.locator)
             print(loc)
             return 0
@@ -199,12 +243,45 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.cmd == "center":
+            batch = _read_batch_lines(args.file, args.stdin)
+            if batch:
+                rows = [to_center_latlon(loc) for loc in batch]
+                if args.format == "json":
+                    print(_json_dumps([[lat, lon] for (lat, lon) in rows]))
+                else:
+                    sep = "," if args.format == "csv" else " "
+                    print(
+                        "\n".join(
+                            f"{_fmt_float(lat, args.digits)}{sep}{_fmt_float(lon, args.digits)}"
+                            for lat, lon in rows
+                        )
+                    )
+                return 0
+            if args.locator is None:
+                raise ValueError("locator is required unless --file/--stdin is provided")
             lat, lon = to_center_latlon(args.locator)
             sep = "," if args.csv else " "
             print(f"{_fmt_float(lat, args.digits)}{sep}{_fmt_float(lon, args.digits)}")
             return 0
 
         if args.cmd == "bbox":
+            batch = _read_batch_lines(args.file, args.stdin)
+            if batch:
+                rows = [to_bbox(loc) for loc in batch]
+                if args.format == "json":
+                    print(_json_dumps([list(row) for row in rows]))
+                else:
+                    sep = "," if args.format == "csv" else " "
+                    print(
+                        "\n".join(
+                            f"{_fmt_float(min_lat, args.digits)}{sep}{_fmt_float(min_lon, args.digits)}"
+                            f"{sep}{_fmt_float(max_lat, args.digits)}{sep}{_fmt_float(max_lon, args.digits)}"
+                            for min_lat, min_lon, max_lat, max_lon in rows
+                        )
+                    )
+                return 0
+            if args.locator is None:
+                raise ValueError("locator is required unless --file/--stdin is provided")
             min_lat, min_lon, max_lat, max_lon = to_bbox(args.locator)
             sep = "," if args.csv else " "
             print(
@@ -250,6 +327,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.cmd == "from-latlon":
+            batch = _read_batch_lines(args.file, args.stdin)
+            if batch:
+                out = []
+                for line in batch:
+                    parts = [p.strip() for p in line.split(",")] if "," in line else line.split()
+                    if len(parts) != 2:
+                        raise ValueError("Latitude/longitude must be 'lat lon' or 'lat,lon'")
+                    lat, lon = float(parts[0]), float(parts[1])
+                    out.append(
+                        from_latlon(lat, lon, precision=args.precision, clamp=(not args.no_clamp)).locator
+                    )
+                if args.format == "json":
+                    print(_json_dumps(out))
+                else:
+                    print("\n".join(out))
+                return 0
+            if not args.latlon:
+                raise ValueError("lat/lon is required unless --file/--stdin is provided")
             lat, lon = _parse_latlon(args.latlon)
             g = from_latlon(
                 lat,
