@@ -6,6 +6,7 @@ from maidenhead import (
     cell_size,
     cell_size_many,
     from_latlon_many,
+    GridSquare,
     normalize,
     normalize_many,
     to_bbox,
@@ -27,6 +28,13 @@ def test_normalize_many(valid_locators):
     locs = rng.sample(valid_locators, min(5, len(valid_locators)))
     mixed = [loc.swapcase() for loc in locs]
     assert normalize_many(mixed) == [normalize(loc) for loc in locs]
+
+
+def test_normalize_many_with_gridsquare(valid_locators):
+    rng = random.Random(15)
+    locs = rng.sample(valid_locators, min(3, len(valid_locators)))
+    squares = [GridSquare(normalize(loc)) for loc in locs]
+    assert normalize_many(squares) == [normalize(loc) for loc in locs]
 
 
 def test_to_center_many(valid_locators):

@@ -5,7 +5,7 @@ from typing import Iterable, Sequence
 
 from .core import cell_size, from_latlon, normalize, to_bbox, to_center_latlon
 from .errors import OutOfRangeError, require
-from .mh_types import LocatorLike
+from .mh_types import GridSquare, LocatorLike
 
 
 def _require_same_length(a: Sequence[float], b: Sequence[float]) -> None:
@@ -18,8 +18,12 @@ def _require_same_length(a: Sequence[float], b: Sequence[float]) -> None:
     )
 
 
+def _coerce_locator_text(locator: LocatorLike) -> str:
+    return locator.locator if isinstance(locator, GridSquare) else locator
+
+
 def normalize_many(locators: Iterable[LocatorLike]) -> list[str]:
-    return [normalize(loc) for loc in locators]
+    return [normalize(_coerce_locator_text(loc)) for loc in locators]
 
 
 def from_latlon_many(
@@ -28,10 +32,11 @@ def from_latlon_many(
     *,
     precision: int = 6,
     clamp: bool = True,
+    resolution_deg: float | tuple[float, float] | None = None,
 ) -> list[str]:
     _require_same_length(lats, lons)
     return [
-        from_latlon(lat, lon, precision=precision, clamp=clamp).locator
+        from_latlon(lat, lon, precision=precision, clamp=clamp, resolution_deg=resolution_deg).locator
         for lat, lon in zip(lats, lons)
     ]
 

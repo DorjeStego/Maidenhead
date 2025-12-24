@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import math
-from decimal import Decimal
 from typing import Iterable, Iterator, List, Literal, Sequence, Tuple, Union, overload
 
 from . import constants as C
@@ -35,16 +34,6 @@ def _clamp_lat(lat: float) -> float:
 
 def _coerce_locator_text(locator: str | GridSquare) -> str:
     return locator.locator if isinstance(locator, GridSquare) else locator
-
-
-def _coord_resolution_deg(value: float) -> float:
-    if isinstance(value, int):
-        return 1.0
-    d = Decimal(str(value))
-    exp = d.as_tuple().exponent
-    if exp >= 0:
-        return float(10**exp)
-    return float(10**exp)
 
 
 def _pair_count(precision: int) -> int:
@@ -351,12 +340,14 @@ def from_latlon(
     *,
     precision: int = 6,
     clamp: bool = True,
+    resolution_deg: float | tuple[float, float] | None = None,
 ) -> GridSquare:
     """
     Convert lat/lon to a Maidenhead locator at given precision.
 
     - precision is the locator length (2,4,6,8)
     - if lat/lon precision is too coarse, precision is reduced to fit
+      (set resolution_deg to enable this fallback)
     - clamp=True prevents boundary issues at exactly 90/180 by nudging inward
     """
     precision = int(precision)
@@ -373,13 +364,38 @@ def from_latlon(
     latf = float(lat)
     lonf = float(lon)
 
-    lat_res = _coord_resolution_deg(latf)
-    lon_res = _coord_resolution_deg(lonf)
-    for candidate in [p for p in (8, 6, 4, 2) if p <= precision]:
-        step = C.step_size_for_pair(_pair_count(candidate))
-        if lat_res <= step.lat_step_deg and lon_res <= step.lon_step_deg:
-            precision = candidate
-            break
+    if resolution_deg is not None:
+        if isinstance(resolution_deg, tuple):
+            require(
+                len(resolution_deg) == 2,
+                OutOfRangeError,
+                "resolution_deg must be a float or (lat_deg, lon_deg) tuple",
+                resolution_deg=resolution_deg,
+            )
+            lat_res, lon_res = resolution_deg
+        else:
+            lat_res = resolution_deg
+            lon_res = resolution_deg
+        require(
+            isinstance(lat_res, (int, float)) and isinstance(lon_res, (int, float)),
+            OutOfRangeError,
+            "resolution_deg must be numeric",
+            resolution_deg=resolution_deg,
+        )
+        lat_res = float(lat_res)
+        lon_res = float(lon_res)
+        require(
+            lat_res > 0 and lon_res > 0,
+            OutOfRangeError,
+            "resolution_deg must be > 0",
+            resolution_deg=resolution_deg,
+        )
+
+        for candidate in [p for p in (8, 6, 4, 2) if p <= precision]:
+            step = C.step_size_for_pair(_pair_count(candidate))
+            if lat_res <= step.lat_step_deg and lon_res <= step.lon_step_deg:
+                precision = candidate
+                break
 
     if clamp:
         # Normalize lon into [-180,180), clamp lat into [-90,90],

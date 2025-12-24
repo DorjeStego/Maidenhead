@@ -89,6 +89,7 @@ def from_latlon_many(
     *,
     precision: int = 6,
     return_type: str = "auto",
+    resolution_deg: float | tuple[float, float] | None = None,
 ) -> Any:
     """
     Vectorized Maidenhead conversion: lat/lon -> locator strings.
@@ -106,8 +107,12 @@ def from_latlon_many(
 
     # Pandas Series preservation (if both are Series, we preserve index)
     if return_type == "auto" and _is_pandas_series(lats) and _is_pandas_series(lons):
-        out = [ _coerce_locator_out(from_latlon(lat, lon, precision=precision))
-                for (lat, lon) in zip(lats.tolist(), lons.tolist()) ]
+        out = [
+            _coerce_locator_out(
+                from_latlon(lat, lon, precision=precision, resolution_deg=resolution_deg)
+            )
+            for (lat, lon) in zip(lats.tolist(), lons.tolist())
+        ]
         import pandas as pd  # type: ignore
         return pd.Series(out, index=lats.index, name=getattr(lats, "name", None))
 
@@ -119,7 +124,14 @@ def from_latlon_many(
             raise ValueError("lats and lons must have the same length")
         out = _make_numpy_object_array(n)
         for i in range(n):
-            out[i] = _coerce_locator_out(from_latlon(float(lats[i]), float(lons[i]), precision=precision))
+            out[i] = _coerce_locator_out(
+                from_latlon(
+                    float(lats[i]),
+                    float(lons[i]),
+                    precision=precision,
+                    resolution_deg=resolution_deg,
+                )
+            )
         return out
 
     # Explicit return type requests
@@ -136,7 +148,14 @@ def from_latlon_many(
             raise ValueError("lats and lons must have the same length")
         out = _make_numpy_object_array(int(len(lats_arr)))
         for i in range(int(len(lats_arr))):
-            out[i] = _coerce_locator_out(from_latlon(float(lats_arr[i]), float(lons_arr[i]), precision=precision))
+            out[i] = _coerce_locator_out(
+                from_latlon(
+                    float(lats_arr[i]),
+                    float(lons_arr[i]),
+                    precision=precision,
+                    resolution_deg=resolution_deg,
+                )
+            )
         return out
 
     if return_type == "pandas":
@@ -158,8 +177,17 @@ def from_latlon_many(
             index = None
             name = None
 
-        out = [ _coerce_locator_out(from_latlon(float(lat_list[i]), float(lon_list[i]), precision=precision))
-                for i in range(len(lat_list)) ]
+        out = [
+            _coerce_locator_out(
+                from_latlon(
+                    float(lat_list[i]),
+                    float(lon_list[i]),
+                    precision=precision,
+                    resolution_deg=resolution_deg,
+                )
+            )
+            for i in range(len(lat_list))
+        ]
         return pd.Series(out, index=index, name=name)
 
     # Default list behavior
@@ -169,7 +197,14 @@ def from_latlon_many(
         raise ValueError("lats and lons must have the same length")
 
     return [
-        _coerce_locator_out(from_latlon(float(lat_list[i]), float(lon_list[i]), precision=precision))
+        _coerce_locator_out(
+            from_latlon(
+                float(lat_list[i]),
+                float(lon_list[i]),
+                precision=precision,
+                resolution_deg=resolution_deg,
+            )
+        )
         for i in range(len(lat_list))
     ]
 

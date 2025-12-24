@@ -135,9 +135,9 @@ def test_from_latlon_precision_rejects_invalid():
 
 
 def test_from_latlon_fallback_precision():
-    loc = from_latlon(51.5, -0.1, precision=6)
+    loc = from_latlon(51.5, -0.1, precision=6, resolution_deg=0.1)
     assert len(loc.locator) == 4
-    loc2 = from_latlon(0, 0, precision=8)
+    loc2 = from_latlon(0, 0, precision=8, resolution_deg=1.0)
     assert len(loc2.locator) == 4
 
 
