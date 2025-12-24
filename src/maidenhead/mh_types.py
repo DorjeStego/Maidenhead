@@ -81,7 +81,7 @@ def iter_tokens(locator: str) -> Iterator[LocatorToken]:
 
     This does NOT normalize or validate the content beyond length/precision.
     Intended for use by core.parse()/core.normalize() after they do their own
-    preprocessing (trim, case handling, strict checks, etc.).
+    preprocessing (trim, case handling, validation, etc.).
     """
     p = precision_of(locator)
     for i in range(0, p, 2):

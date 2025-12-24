@@ -135,8 +135,7 @@ SUBSQUARE_CHARS_LOWER: str = "abcdefghijklmnopqrstuvwx"  # a-x (24)
 
 DIGIT_CHARS: str = DIGITS
 
-# For tolerant parsing you may accept A-X/a-x for pair 1, but canonical output should be A-R.
-# Keep these distinct so core can choose strict vs tolerant behavior.
+# Canonical field letters are A-R; keep the tolerant set for reference only.
 FIELD_CHARS_TOLERANT_UPPER: str = "ABCDEFGHIJKLMNOPQRSTUVWX"  # A-X (24)
 
 

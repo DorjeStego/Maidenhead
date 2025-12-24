@@ -119,7 +119,7 @@ def _parse_point(s: str):
         return (float(parts[0]), float(parts[1]))
 
     # Treat as locator; normalize/validate early for clearer CLI errors.
-    return normalize(txt, strict=True)
+    return normalize(txt)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -128,13 +128,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         if args.cmd == "normalize":
-            loc = normalize(args.locator, strict=True)
+            loc = normalize(args.locator)
             print(loc)
             return 0
 
         if args.cmd == "validate":
             try:
-                _ = normalize(args.locator, strict=True)
+                _ = normalize(args.locator)
             except MaidenheadError:
                 # 2 is a common “bad usage / invalid input” exit code.
                 return 2

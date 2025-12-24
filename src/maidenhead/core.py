@@ -5,7 +5,7 @@ import math
 from typing import Iterable, Iterator, List, Literal, Sequence, Tuple, Union, overload
 
 from . import constants as C
-from .errors import InvalidLocatorError, OutOfRangeError, PrecisionError, require
+from .errors import InvalidLocatorError, MaidenheadError, OutOfRangeError, PrecisionError, require
 from .geo import bearing_deg, distance_km
 from .mh_types import GridSquare, LocatorLike, validate_precision
 
@@ -105,7 +105,7 @@ def _encode_digit(idx: int) -> str:
     return chr(ord("0") + idx)
 
 
-def normalize(locator: str, *, strict: bool = False) -> str:
+def normalize(locator: str) -> str:
     """
     Normalize a Maidenhead locator to canonical casing.
 
@@ -117,9 +117,8 @@ def normalize(locator: str, *, strict: bool = False) -> str:
       - Pair 5 letters: lowercase
       - ... etc ...
 
-    strict currently controls whether we reject any characters outside the canonical
-    ranges (A-R for pair1, 0-9 for digit pairs, a-x for other letter pairs). Case
-    is normalized regardless.
+    Normalization also validates the canonical character ranges:
+    A-R for pair1, 0-9 for digit pairs, a-x for other letter pairs.
     """
     require(
         isinstance(locator, str),
@@ -159,15 +158,15 @@ def normalize(locator: str, *, strict: bool = False) -> str:
 def is_valid(locator: str) -> bool:
     """Return True if locator parses and validates."""
     try:
-        _ = normalize(locator, strict=True)
+        _ = normalize(locator)
         return True
-    except Exception:
+    except MaidenheadError:
         return False
 
 
 def parse(locator: str) -> GridSquare:
     """Parse and validate a locator string, returning a GridSquare."""
-    norm = normalize(locator, strict=True)
+    norm = normalize(locator)
     return GridSquare(norm)
 
 
@@ -201,7 +200,7 @@ def to_bbox(locator: LocatorLike) -> tuple[float, float, float, float]:
     Return bounding box (min_lat, min_lon, max_lat, max_lon) for a locator.
     """
     s = _coerce_locator_text(locator)
-    s = normalize(s, strict=True)
+    s = normalize(s)
 
     lon_indices, lat_indices = _decode_indices(s)
     lon_min = C.LON_MIN_DEG
@@ -350,7 +349,19 @@ def from_latlon(
       (set resolution_deg to enable this fallback)
     - clamp=True prevents boundary issues at exactly 90/180 by nudging inward
     """
-    precision = int(precision)
+    if isinstance(precision, bool):
+        raise PrecisionError("precision must be an integer", precision=precision)
+    if isinstance(precision, float):
+        if not precision.is_integer():
+            raise PrecisionError("precision must be an integer", precision=precision)
+        precision = int(precision)
+    elif isinstance(precision, str):
+        if not precision.isdigit():
+            raise PrecisionError("precision must be an integer", precision=precision)
+        precision = int(precision)
+    elif not isinstance(precision, int):
+        raise PrecisionError("precision must be an integer", precision=precision)
+
     require(
         precision in (2, 4, 6, 8),
         PrecisionError,
@@ -463,7 +474,7 @@ def parent(locator: LocatorLike, *, precision: int | None = None) -> GridSquare:
     If precision is None, drops one pair (e.g. 6->4, 4->2).
     """
     s = _coerce_locator_text(locator)
-    s = normalize(s, strict=True)
+    s = normalize(s)
     p = len(s)
 
     if precision is None:
@@ -489,7 +500,7 @@ def children(locator: LocatorLike, *, precision: int) -> Iterable[GridSquare]:
     Note: expanding multiple levels can be huge; this is intentionally an iterator.
     """
     s = _coerce_locator_text(locator)
-    s = normalize(s, strict=True)
+    s = normalize(s)
     p0 = len(s)
     p1 = validate_precision(int(precision))
 
@@ -538,7 +549,7 @@ def neighbors(locator: LocatorLike, *, ring: int = 1, diagonals: bool = True) ->
     require(isinstance(ring, int) and ring >= 1, ValueError, "ring must be an integer >= 1", ring=ring)
 
     s = _coerce_locator_text(locator)
-    s = normalize(s, strict=True)
+    s = normalize(s)
     p = len(s)
 
     min_lat, min_lon, max_lat, max_lon = to_bbox(s)
@@ -580,7 +591,7 @@ def adjacent(locator: LocatorLike, *, diagonals: bool = False) -> dict[str, Grid
     includes NE, NW, SE, SW.
     """
     s = _coerce_locator_text(locator)
-    s = normalize(s, strict=True)
+    s = normalize(s)
     p = len(s)
 
     min_lat, min_lon, max_lat, max_lon = to_bbox(s)
