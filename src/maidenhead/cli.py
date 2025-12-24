@@ -29,6 +29,11 @@ def _add_common_args(p: argparse.ArgumentParser) -> None:
         default=6,
         help="Decimal places for numeric output (default: 6).",
     )
+    p.add_argument(
+        "--csv",
+        action="store_true",
+        help="Use comma-separated output instead of spaces.",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -51,6 +56,12 @@ def build_parser() -> argparse.ArgumentParser:
     # validate
     p_val = sub.add_parser("validate", help="Validate a locator. Exit code 0 if valid, 2 if invalid.")
     p_val.add_argument("locator", help="Maidenhead locator (e.g. IO91wm)")
+    p_val.add_argument(
+        "--print",
+        dest="print_output",
+        action="store_true",
+        help="Print 'valid' or 'invalid' in addition to the exit code.",
+    )
 
     # center
     p_center = sub.add_parser("center", help="Print the center lat/lon for a locator.")
@@ -64,8 +75,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     # from-latlon
     p_fll = sub.add_parser("from-latlon", help="Convert lat/lon to a locator.")
-    p_fll.add_argument("lat", type=float, help="Latitude in degrees (-90..90)")
-    p_fll.add_argument("lon", type=float, help="Longitude in degrees (-180..180 or any, normalized)")
+    p_fll.add_argument(
+        "latlon",
+        nargs="+",
+        help="Latitude/longitude as 'lat lon' or 'lat,lon'",
+    )
     p_fll.add_argument(
         "-p",
         "--precision",
@@ -122,6 +136,17 @@ def _parse_point(s: str):
     return normalize(txt)
 
 
+def _parse_latlon(args: Sequence[str]) -> tuple[float, float]:
+    if len(args) == 1 and "," in args[0]:
+        parts = [p.strip() for p in args[0].split(",")]
+        if len(parts) != 2:
+            raise ValueError("Latitude/longitude must be 'lat lon' or 'lat,lon'")
+        return (float(parts[0]), float(parts[1]))
+    if len(args) == 2:
+        return (float(args[0]), float(args[1]))
+    raise ValueError("Latitude/longitude must be 'lat lon' or 'lat,lon'")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
@@ -137,26 +162,33 @@ def main(argv: Sequence[str] | None = None) -> int:
                 _ = normalize(args.locator)
             except MaidenheadError:
                 # 2 is a common “bad usage / invalid input” exit code.
+                if args.print_output:
+                    print("invalid")
                 return 2
+            if args.print_output:
+                print("valid")
             return 0
 
         if args.cmd == "center":
             lat, lon = to_center_latlon(args.locator)
-            print(f"{_fmt_float(lat, args.digits)} {_fmt_float(lon, args.digits)}")
+            sep = "," if args.csv else " "
+            print(f"{_fmt_float(lat, args.digits)}{sep}{_fmt_float(lon, args.digits)}")
             return 0
 
         if args.cmd == "bbox":
             min_lat, min_lon, max_lat, max_lon = to_bbox(args.locator)
+            sep = "," if args.csv else " "
             print(
-                f"{_fmt_float(min_lat, args.digits)} {_fmt_float(min_lon, args.digits)} "
-                f"{_fmt_float(max_lat, args.digits)} {_fmt_float(max_lon, args.digits)}"
+                f"{_fmt_float(min_lat, args.digits)}{sep}{_fmt_float(min_lon, args.digits)}"
+                f"{sep}{_fmt_float(max_lat, args.digits)}{sep}{_fmt_float(max_lon, args.digits)}"
             )
             return 0
 
         if args.cmd == "from-latlon":
+            lat, lon = _parse_latlon(args.latlon)
             g = from_latlon(
-                args.lat,
-                args.lon,
+                lat,
+                lon,
                 precision=args.precision,
                 clamp=(not args.no_clamp),
             )
@@ -181,7 +213,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             a = _parse_point(args.a)
             b = _parse_point(args.b)
             lat, lon = midpoint(a, b)
-            print(f"{_fmt_float(lat, args.digits)} {_fmt_float(lon, args.digits)}")
+            sep = "," if args.csv else " "
+            print(f"{_fmt_float(lat, args.digits)}{sep}{_fmt_float(lon, args.digits)}")
             return 0
 
         parser.error("unknown command")
