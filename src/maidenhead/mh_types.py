@@ -51,18 +51,27 @@ def validate_precision(precision: int) -> int:
     Must be even and >= 2.
     """
     if not isinstance(precision, int):
-        raise PrecisionError(f"precision must be int, got {type(precision).__name__}")
+        raise PrecisionError(
+            f"precision must be int, got {type(precision).__name__}",
+            precision=precision,
+        )
     if precision < 2:
-        raise PrecisionError("precision must be >= 2 characters")
+        raise PrecisionError("precision must be >= 2 characters", precision=precision)
     if precision % 2 != 0:
-        raise PrecisionError("precision must be an even number of characters (2, 4, 6, ...)")
+        raise PrecisionError(
+            "precision must be an even number of characters (2, 4, 6, ...)",
+            precision=precision,
+        )
     return precision
 
 
 def precision_of(locator: str) -> int:
     """Return precision (character length) of locator, after basic sanity checks."""
     if not isinstance(locator, str):
-        raise InvalidLocatorError(f"locator must be str, got {type(locator).__name__}")
+        raise InvalidLocatorError(
+            f"locator must be str, got {type(locator).__name__}",
+            locator=locator,
+        )
     return validate_precision(len(locator))
 
 
@@ -72,7 +81,7 @@ def iter_tokens(locator: str) -> Iterator[LocatorToken]:
 
     This does NOT normalize or validate the content beyond length/precision.
     Intended for use by core.parse()/core.normalize() after they do their own
-    preprocessing (trim, case handling, strict checks, etc.).
+    preprocessing (trim, case handling, validation, etc.).
     """
     p = precision_of(locator)
     for i in range(0, p, 2):
@@ -99,7 +108,10 @@ class GridSquare:
 
     def __post_init__(self) -> None:
         if not isinstance(self.locator, str):
-            raise InvalidLocatorError(f"locator must be str, got {type(self.locator).__name__}")
+            raise InvalidLocatorError(
+                f"locator must be str, got {type(self.locator).__name__}",
+                locator=self.locator,
+            )
 
         loc_len = len(self.locator)
         validate_precision(loc_len)
@@ -110,7 +122,9 @@ class GridSquare:
             validate_precision(self.precision)
             if self.precision != loc_len:
                 raise PrecisionError(
-                    f"precision ({self.precision}) does not match locator length ({loc_len})"
+                    f"precision ({self.precision}) does not match locator length ({loc_len})",
+                    precision=self.precision,
+                    locator_length=loc_len,
                 )
 
     def __str__(self) -> str:
@@ -125,12 +139,12 @@ class GridSquare:
     # ---- Convenience constructors ----
 
     @classmethod
-    def parse(cls, locator: str, *, allow_extended: bool = True) -> "GridSquare":
+    def parse(cls, locator: str) -> "GridSquare":
         """
         Parse and validate a locator string using core.parse(), returning GridSquare.
         """
         from .core import parse as _parse  # lazy to avoid circular import
-        return _parse(locator, allow_extended=allow_extended)
+        return _parse(locator)
 
     # ---- Geometry properties (delegated to core) ----
 

@@ -1,11 +1,16 @@
+import random
+
+from maidenhead import normalize
 from maidenhead.cli import main
 
 
-def test_cli_normalize(capsys):
-    code = main(["normalize", "IO83ri"])
+def test_cli_normalize(capsys, valid_locators):
+    rng = random.Random(5)
+    loc = rng.choice(valid_locators)
+    code = main(["normalize", loc.swapcase()])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip() == "IO83ri"
+    assert captured.out.strip() == normalize(loc)
 
 
 def test_cli_validate_invalid(invalid_locators):

@@ -20,7 +20,7 @@ from importlib.metadata import PackageNotFoundError, version as _pkg_version
 try:
     __version__ = _pkg_version("maidenhead")
 except PackageNotFoundError:  # pragma: no cover (common in editable/dev mode)
-    __version__ = "0.1.0"
+    __version__ = "0.1.0.dev2"
 
 
 # ---- Public types/exceptions ----
@@ -28,9 +28,16 @@ from .errors import MaidenheadError, InvalidLocatorError, OutOfRangeError, Preci
 from .mh_types import GridSquare
 
 # ---- Core API ----
+from .bulk import cell_size_many, from_latlon_many, normalize_many, to_bbox_many, to_center_many
 from .core import (
+    adjacent,
+    azimuth,
+    cell_size,
     children,
+    contains,
+    corners,
     from_latlon,
+    initial_bearing,
     is_valid,
     neighbors,
     normalize,
@@ -58,10 +65,21 @@ __all__ = [
     "parse",
     "is_valid",
     "normalize",
+    "normalize_many",
     "precision_of",
     "from_latlon",
+    "from_latlon_many",
+    "initial_bearing",
+    "cell_size",
+    "cell_size_many",
     "to_center_latlon",
+    "to_center_many",
     "to_bbox",
+    "to_bbox_many",
+    "corners",
+    "azimuth",
+    "adjacent",
+    "contains",
     "neighbors",
     "parent",
     "children",

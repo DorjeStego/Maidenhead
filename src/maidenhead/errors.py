@@ -1,6 +1,18 @@
 # maidenhead/errors.py
 from __future__ import annotations
 
+from typing import Type, Union
+
+__all__ = [
+    "MaidenheadError",
+    "PrecisionError",
+    "InvalidLocatorError",
+    "OutOfRangeError",
+    "UnsupportedError",
+    "MissingDependencyError",
+    "require",
+]
+
 
 class MaidenheadError(Exception):
     """
@@ -17,6 +29,13 @@ class PrecisionError(MaidenheadError, ValueError):
     Inherits ValueError for ergonomics with existing code patterns.
     """
 
+    def __init__(self, message: str, **context: object) -> None:
+        super().__init__(message)
+        self.context = context
+
+    def __str__(self) -> str:
+        return _format_with_context(super().__str__(), self.context)
+
 
 class InvalidLocatorError(MaidenheadError, ValueError):
     """
@@ -24,12 +43,26 @@ class InvalidLocatorError(MaidenheadError, ValueError):
     Inherits ValueError for ergonomics.
     """
 
+    def __init__(self, message: str, **context: object) -> None:
+        super().__init__(message)
+        self.context = context
+
+    def __str__(self) -> str:
+        return _format_with_context(super().__str__(), self.context)
+
 
 class OutOfRangeError(MaidenheadError, ValueError):
     """
     Raised when latitude/longitude inputs are out of valid bounds.
     Inherits ValueError for ergonomics.
     """
+
+    def __init__(self, message: str, **context: object) -> None:
+        super().__init__(message)
+        self.context = context
+
+    def __str__(self) -> str:
+        return _format_with_context(super().__str__(), self.context)
 
 
 class UnsupportedError(MaidenheadError):
@@ -46,7 +79,18 @@ class MissingDependencyError(MaidenheadError, ImportError):
     """
 
 
-def require(condition: bool, exc: type[Exception], message: str) -> None:
+ExceptionType = Type[Exception]
+ExceptionLike = Union[ExceptionType, Exception]
+
+
+def _format_with_context(message: str, context: dict[str, object]) -> str:
+    if not context:
+        return message
+    parts = ", ".join(f"{key}={context[key]!r}" for key in sorted(context))
+    return f"{message} ({parts})"
+
+
+def require(condition: bool, exc: ExceptionLike, message: str, **context: object) -> None:
     """
     Tiny internal helper to keep core code readable.
 
@@ -54,4 +98,11 @@ def require(condition: bool, exc: type[Exception], message: str) -> None:
         require(len(locator) % 2 == 0, PrecisionError, "precision must be even")
     """
     if not condition:
+        if isinstance(exc, Exception):
+            raise exc
+        if context:
+            try:
+                raise exc(message, **context)
+            except TypeError:
+                raise exc(message)
         raise exc(message)
