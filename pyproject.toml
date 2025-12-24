@@ -15,7 +15,7 @@ classifiers = [
 urls = { "Repository" = "https://github.com/DorjeStego/Maidenhead" }
 
 [project.scripts]
-mh = "maidenhead.cli:development"
+mh = "maidenhead.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
