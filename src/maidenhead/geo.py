@@ -5,6 +5,7 @@ import math
 from dataclasses import dataclass
 from typing import Literal, Tuple, Union, overload
 
+from .errors import MissingDependencyError
 from .mh_types import GridSquare, LocatorLike
 
 # Mean Earth radius in km (IUGG recommended mean radius)
@@ -19,10 +20,6 @@ PointLike = Union[LocatorLike, Tuple[float, float]]
 
 class GeoError(Exception):
     """Base exception for geo helpers."""
-
-
-class MissingDependencyError(GeoError):
-    """Raised when an optional dependency is required but not installed."""
 
 
 def _deg2rad(deg: float) -> float:
