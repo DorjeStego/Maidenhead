@@ -17,6 +17,7 @@ mh <command> [options] [args]
 Normalize locator casing and validate.
 
 mh normalize FN31pr
+
 mh normalize qf56oc
 
 #### validate
@@ -24,7 +25,9 @@ mh normalize qf56oc
 Validate a locator. Exit code 0 if valid, 2 if invalid.
 
 mh validate JO22db
+
 mh validate AA0
+
 mh validate AA0 --print   # prints "invalid"
 
 #### center
@@ -32,7 +35,9 @@ mh validate AA0 --print   # prints "invalid"
 Print the center latitude/longitude of a locator.
 
 mh center QF56oc
+
 mh center QF56oc --digits 4
+
 mh center QF56oc --csv
 
 #### bbox
@@ -40,7 +45,9 @@ mh center QF56oc --csv
 Print bounding box as min_lat min_lon max_lat max_lon.
 
 mh bbox EM12rx
+
 mh bbox EM12rx --digits 5
+
 mh bbox EM12rx --csv
 
 #### from-latlon
@@ -48,8 +55,11 @@ mh bbox EM12rx --csv
 Convert latitude/longitude to a locator.
 
 mh from-latlon 35.6895 139.6917
+
 mh from-latlon 35.6895,139.6917
+
 mh from-latlon -22.9068 -43.1729 --precision 8
+
 mh from-latlon 90 180 --no-clamp   # error
 
 #### distance
@@ -57,7 +67,9 @@ mh from-latlon 90 180 --no-clamp   # error
 Distance (km) between two locators or points (lat,lon).
 
 mh distance IO83ri FN31pr
+
 mh distance -33.8688,151.2093 51.5074,-0.1278
+
 mh distance IO83ri FN31pr --method geodesic
 
 #### bearing
@@ -65,6 +77,7 @@ mh distance IO83ri FN31pr --method geodesic
 Initial bearing (degrees) from A to B.
 
 mh bearing CM98jw JO22db
+
 mh bearing 37.7749,-122.4194 48.8566,2.3522
 
 #### midpoint
@@ -72,7 +85,9 @@ mh bearing 37.7749,-122.4194 48.8566,2.3522
 Great-circle midpoint between A and B.
 
 mh midpoint RF82ib JP12fk
+
 mh midpoint 40.4168,-3.7038 55.7558,37.6173
+
 mh midpoint RF82ib JP12fk --csv
 
 ### Global Options
@@ -80,11 +95,13 @@ mh midpoint RF82ib JP12fk --csv
 Most coordinate outputs share:
 
 - --digits N: decimal places for numeric output (default 6)
+
 - --csv: comma-separated output
 
 ### Exit Codes
 
 - 0: success (valid input)
+
 - 2: invalid input / usage error
 
 ———
