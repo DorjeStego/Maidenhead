@@ -16,7 +16,10 @@ def precision_of(locator: str | GridSquare) -> int:
     if isinstance(locator, GridSquare):
         return locator.precision
     if not isinstance(locator, str):
-        raise InvalidLocatorError(f"locator must be str or GridSquare, got {type(locator).__name__}")
+        raise InvalidLocatorError(
+            f"locator must be str or GridSquare, got {type(locator).__name__}",
+            locator=locator,
+        )
     return validate_precision(len(locator))
 
 
@@ -54,38 +57,62 @@ def _decode_letter(ch: str, *, pair_index: int) -> int:
     Pair 1 is base18 (A-R). Other letter pairs are base24 (a-x).
     """
     if len(ch) != 1:
-        raise InvalidLocatorError("internal error: expected single char")
+        raise InvalidLocatorError("internal error: expected single char", ch=ch, pair_index=pair_index)
 
     if pair_index == 1:
         # Accept either case, but only A-R.
         u = ch.upper()
-        require(u in C.FIELD_CHARS_UPPER, InvalidLocatorError, f"invalid field letter: {ch!r}")
+        require(
+            u in C.FIELD_CHARS_UPPER,
+            InvalidLocatorError,
+            f"invalid field letter: {ch!r}",
+            ch=ch,
+            pair_index=pair_index,
+        )
         return ord(u) - ord("A")
 
     # Other letter pairs: accept either case, but only a-x/A-X.
     l = ch.lower()
-    require(l in C.SUBSQUARE_CHARS_LOWER, InvalidLocatorError, f"invalid letter: {ch!r}")
+    require(
+        l in C.SUBSQUARE_CHARS_LOWER,
+        InvalidLocatorError,
+        f"invalid letter: {ch!r}",
+        ch=ch,
+        pair_index=pair_index,
+    )
     return ord(l) - ord("a")
 
 
 def _encode_letter(idx: int, *, pair_index: int) -> str:
     """Encode index to canonical letter for the given pair index."""
     if pair_index == 1:
-        require(0 <= idx < C.FIELD_BASE, InvalidLocatorError, "field index out of range")
+        require(
+            0 <= idx < C.FIELD_BASE,
+            InvalidLocatorError,
+            "field index out of range",
+            idx=idx,
+            pair_index=pair_index,
+        )
         return chr(ord("A") + idx)
-    require(0 <= idx < C.SUBSQUARE_BASE, InvalidLocatorError, "letter index out of range")
+    require(
+        0 <= idx < C.SUBSQUARE_BASE,
+        InvalidLocatorError,
+        "letter index out of range",
+        idx=idx,
+        pair_index=pair_index,
+    )
     return chr(ord("a") + idx)
 
 
 def _decode_digit(ch: str) -> int:
     if len(ch) != 1:
-        raise InvalidLocatorError("internal error: expected single char")
-    require(ch in C.DIGIT_CHARS, InvalidLocatorError, f"invalid digit: {ch!r}")
+        raise InvalidLocatorError("internal error: expected single char", ch=ch)
+    require(ch in C.DIGIT_CHARS, InvalidLocatorError, f"invalid digit: {ch!r}", ch=ch)
     return ord(ch) - ord("0")
 
 
 def _encode_digit(idx: int) -> str:
-    require(0 <= idx < 10, InvalidLocatorError, "digit index out of range")
+    require(0 <= idx < 10, InvalidLocatorError, "digit index out of range", idx=idx)
     return chr(ord("0") + idx)
 
 
@@ -105,10 +132,15 @@ def normalize(locator: str, *, strict: bool = False) -> str:
     ranges (A-R for pair1, 0-9 for digit pairs, a-x for other letter pairs). Case
     is normalized regardless.
     """
-    require(isinstance(locator, str), InvalidLocatorError, f"locator must be str, got {type(locator).__name__}")
+    require(
+        isinstance(locator, str),
+        InvalidLocatorError,
+        f"locator must be str, got {type(locator).__name__}",
+        locator=locator,
+    )
 
     s = locator.strip()
-    require(s != "", InvalidLocatorError, "locator is empty")
+    require(s != "", InvalidLocatorError, "locator is empty", locator=locator)
 
     p = validate_precision(len(s))
     out_chars: list[str] = []
@@ -328,10 +360,15 @@ def from_latlon(
     - clamp=True prevents boundary issues at exactly 90/180 by nudging inward
     """
     precision = int(precision)
-    require(precision in (2, 4, 6, 8), PrecisionError, "precision must be one of 2, 4, 6, 8")
+    require(
+        precision in (2, 4, 6, 8),
+        PrecisionError,
+        "precision must be one of 2, 4, 6, 8",
+        precision=precision,
+    )
     precision = validate_precision(precision)
-    require(isinstance(lat, (int, float)), OutOfRangeError, "lat must be a number")
-    require(isinstance(lon, (int, float)), OutOfRangeError, "lon must be a number")
+    require(isinstance(lat, (int, float)), OutOfRangeError, "lat must be a number", lat=lat)
+    require(isinstance(lon, (int, float)), OutOfRangeError, "lon must be a number", lon=lon)
 
     latf = float(lat)
     lonf = float(lon)
@@ -359,7 +396,12 @@ def from_latlon(
         if latf <= C.LAT_MIN_DEG:
             latf = C.LAT_MIN_DEG + C.CLAMP_EPS_DEG
     else:
-        require(C.LAT_MIN_DEG <= latf <= C.LAT_MAX_DEG, OutOfRangeError, "lat out of range [-90, 90]")
+        require(
+            C.LAT_MIN_DEG <= latf <= C.LAT_MAX_DEG,
+            OutOfRangeError,
+            "lat out of range [-90, 90]",
+            lat=latf,
+        )
         # Accept lon in a wider range, but normalize to compute.
         lonf = _normalize_lon(lonf)
 
@@ -409,11 +451,17 @@ def parent(locator: LocatorLike, *, precision: int | None = None) -> GridSquare:
     p = len(s)
 
     if precision is None:
-        require(p > 2, PrecisionError, "cannot parent a 2-character locator")
+        require(p > 2, PrecisionError, "cannot parent a 2-character locator", precision=p)
         new_p = p - 2
     else:
         new_p = validate_precision(int(precision))
-        require(new_p < p, PrecisionError, "parent precision must be less than locator precision")
+        require(
+            new_p < p,
+            PrecisionError,
+            "parent precision must be less than locator precision",
+            precision=new_p,
+            locator_precision=p,
+        )
 
     return GridSquare(s[:new_p])
 
@@ -429,7 +477,13 @@ def children(locator: LocatorLike, *, precision: int) -> Iterable[GridSquare]:
     p0 = len(s)
     p1 = validate_precision(int(precision))
 
-    require(p1 > p0, PrecisionError, "child precision must be greater than locator precision")
+    require(
+        p1 > p0,
+        PrecisionError,
+        "child precision must be greater than locator precision",
+        precision=p1,
+        locator_precision=p0,
+    )
 
     start_pairs = _pair_count(p0)
     end_pairs = _pair_count(p1)
@@ -465,7 +519,7 @@ def neighbors(locator: LocatorLike, *, ring: int = 1, diagonals: bool = True) ->
     Implementation is robust (works across carries) by stepping in degrees from
     the cell center and re-encoding at the same precision.
     """
-    require(isinstance(ring, int) and ring >= 1, ValueError, "ring must be an integer >= 1")
+    require(isinstance(ring, int) and ring >= 1, ValueError, "ring must be an integer >= 1", ring=ring)
 
     s = _coerce_locator_text(locator)
     s = normalize(s, strict=True)

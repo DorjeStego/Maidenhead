@@ -9,7 +9,13 @@ from .mh_types import LocatorLike
 
 
 def _require_same_length(a: Sequence[float], b: Sequence[float]) -> None:
-    require(len(a) == len(b), OutOfRangeError, "lat and lon sequences must be the same length")
+    require(
+        len(a) == len(b),
+        OutOfRangeError,
+        "lat and lon sequences must be the same length",
+        lat_len=len(a),
+        lon_len=len(b),
+    )
 
 
 def normalize_many(locators: Iterable[LocatorLike]) -> list[str]:
