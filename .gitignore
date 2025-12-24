@@ -46,3 +46,5 @@ AGENTS.md
 __pycache__
 dist
 maidenhead.egg-info
+build
+src/maidenhead.egg-info

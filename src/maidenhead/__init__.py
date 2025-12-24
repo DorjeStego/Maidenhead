@@ -28,6 +28,7 @@ from .errors import MaidenheadError, InvalidLocatorError, OutOfRangeError, Preci
 from .mh_types import GridSquare
 
 # ---- Core API ----
+from .bulk import cell_size_many, from_latlon_many, normalize_many, to_bbox_many, to_center_many
 from .core import (
     adjacent,
     azimuth,
@@ -64,12 +65,17 @@ __all__ = [
     "parse",
     "is_valid",
     "normalize",
+    "normalize_many",
     "precision_of",
     "from_latlon",
+    "from_latlon_many",
     "initial_bearing",
     "cell_size",
+    "cell_size_many",
     "to_center_latlon",
+    "to_center_many",
     "to_bbox",
+    "to_bbox_many",
     "corners",
     "azimuth",
     "adjacent",
