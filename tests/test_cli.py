@@ -1,3 +1,4 @@
+import json
 import random
 import sys
 from io import StringIO
@@ -16,7 +17,24 @@ except Exception:  # pragma: no cover - optional in local env
     orjson = None
 
 from maidenhead import normalize, step
+from maidenhead.core import to_bbox, to_center_latlon
+from maidenhead.geo import bearing_deg, distance_km
 from maidenhead.cli import main
+
+
+FIXTURES_PATH = Path(__file__).with_name("fixtures_cli.json")
+
+
+def _load_fixtures():
+    with FIXTURES_PATH.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _run_cli(args, capsys):
+    code = main(args)
+    captured = capsys.readouterr()
+    assert code == 0
+    return captured.out.strip()
 
 
 def test_cli_normalize(capsys, valid_locators):
@@ -28,12 +46,69 @@ def test_cli_normalize(capsys, valid_locators):
     assert captured.out.strip() == normalize(loc)
 
 
+def test_cli_center_literal_expected(capsys):
+    out = _run_cli(["center", "IO83ri", "--digits", "6"], capsys)
+    assert out == "53.354167 -2.541667"
+
+
+def test_cli_bbox_literal_expected(capsys):
+    out = _run_cli(["bbox", "IO83ri", "--digits", "6"], capsys)
+    assert out == "53.333333 -2.583333 53.375000 -2.500000"
+
+
+def test_cli_roundtrip_center_within_bbox(capsys):
+    loc = _run_cli(["from-latlon", "53.365418,-2.574069"], capsys)
+    center = _run_cli(["center", loc, "--digits", "6"], capsys)
+    bbox = _run_cli(["bbox", loc, "--digits", "6"], capsys)
+    lat, lon = [float(v) for v in center.split()]
+    min_lat, min_lon, max_lat, max_lon = [float(v) for v in bbox.split()]
+    assert min_lat <= lat <= max_lat
+    assert min_lon <= lon <= max_lon
+
+
+def test_cli_golden_fixtures(capsys):
+    fixtures = _load_fixtures()
+    for item in fixtures["center"]:
+        out = _run_cli(
+            ["center", item["locator"], "--digits", str(item["digits"])],
+            capsys,
+        )
+        assert out == item["output"]
+    for item in fixtures["bbox"]:
+        out = _run_cli(
+            ["bbox", item["locator"], "--digits", str(item["digits"])],
+            capsys,
+        )
+        assert out == item["output"]
+    for item in fixtures["from_latlon"]:
+        out = _run_cli(
+            ["from-latlon", item["latlon"], "--precision", str(item["precision"])],
+            capsys,
+        )
+        assert out == item["output"]
+    for item in fixtures["distance"]:
+        out = _run_cli(
+            ["distance", *item["points"], "--digits", str(item["digits"])],
+            capsys,
+        )
+        assert out == item["output"]
+    for item in fixtures["bearing"]:
+        out = _run_cli(
+            ["bearing", *item["points"], "--digits", str(item["digits"])],
+            capsys,
+        )
+        assert out == item["output"]
+
+
 def test_cli_center_csv(capsys, valid_locators):
     loc = valid_locators[0]
     code = main(["center", loc, "--digits", "4", "--csv"])
     captured = capsys.readouterr()
     assert code == 0
-    assert "," in captured.out.strip()
+    lat, lon = to_center_latlon(loc)
+    out_lat, out_lon = [float(v) for v in captured.out.strip().split(",")]
+    assert out_lat == pytest.approx(round(lat, 4))
+    assert out_lon == pytest.approx(round(lon, 4))
 
 
 def test_cli_bbox_csv(capsys, valid_locators):
@@ -41,7 +116,11 @@ def test_cli_bbox_csv(capsys, valid_locators):
     code = main(["bbox", loc, "--digits", "4", "--csv"])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip().count(",") == 3
+    min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
+    out_vals = [float(v) for v in captured.out.strip().split(",")]
+    expected = [min_lat, min_lon, max_lat, max_lon]
+    for out_val, exp in zip(out_vals, expected):
+        assert out_val == pytest.approx(round(exp, 4))
 
 
 def test_cli_from_latlon_single_arg(capsys):
@@ -55,14 +134,14 @@ def test_cli_from_latlon_space_separated(capsys):
     code = main(["from-latlon", "53.073219", "-3.934023"])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip()
+    assert captured.out.strip() == "IO83ab"
 
 
 def test_cli_from_latlon_comma_space(capsys):
     code = main(["from-latlon", "53.073219,", "-3.934023"])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip()
+    assert captured.out.strip() == "IO83ab"
 
 
 def test_cli_from_latlon_precision_10(capsys):
@@ -85,7 +164,10 @@ def test_cli_size_output(capsys, valid_locators):
     code = main(["size", loc, "--unit", "km", "--csv"])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip().count(",") == 1
+    out = [float(v) for v in captured.out.strip().split(",")]
+    assert len(out) == 2
+    assert out[0] > 0.0
+    assert out[1] > 0.0
 
 
 def test_cli_step_output(capsys, valid_locators):
@@ -174,7 +256,10 @@ def test_cli_size_at_lat(capsys, valid_locators):
     code = main(["size", loc, "--unit", "km", "--at-lat", "10"])
     captured = capsys.readouterr()
     assert code == 0
-    assert " " in captured.out.strip()
+    out = [float(v) for v in captured.out.strip().split()]
+    assert len(out) == 2
+    assert out[0] > 0.0
+    assert out[1] > 0.0
 
 
 def test_cli_area_diagonal(capsys, valid_locators):
@@ -182,21 +267,25 @@ def test_cli_area_diagonal(capsys, valid_locators):
     code = main(["area", loc])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip()
+    assert float(captured.out.strip()) > 0.0
 
 
 def test_cli_distance_comma_space(capsys):
     code = main(["distance", "53.073219,", "-3.934023", "51.5074,-0.1278"])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip()
+    out = float(captured.out.strip())
+    expected = distance_km((53.073219, -3.934023), (51.5074, -0.1278))
+    assert out == pytest.approx(expected)
 
 
 def test_cli_distance_space_separated(capsys):
     code = main(["distance", "53.073219", "-3.934023", "51.5074", "-0.1278"])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip()
+    out = float(captured.out.strip())
+    expected = distance_km((53.073219, -3.934023), (51.5074, -0.1278))
+    assert out == pytest.approx(expected)
 
 
 def test_cli_utm(capsys, valid_locators):
@@ -204,21 +293,23 @@ def test_cli_utm(capsys, valid_locators):
     code = main(["utm", loc])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip()
+    assert captured.out.strip() == "29N"
 
 
 def test_cli_cover_circle(capsys):
     code = main(["cover-circle", "0.0,0.0", "5", "--precision", "4"])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip()
+    locs = captured.out.strip().split()
+    assert "JJ00" in locs
 
 
 def test_cli_cover_line(capsys):
     code = main(["cover-line", "0.0,0.0", "1.0,1.0", "--precision", "4"])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip()
+    locs = captured.out.strip().split()
+    assert "JJ00" in locs
 
 
 def test_cli_great_circle(capsys):
@@ -233,14 +324,16 @@ def test_cli_bearing_bin(capsys):
     code = main(["bearing-bin", "0.0,0.0", "0.0,10.0", "--bin-size", "10"])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip()
+    assert float(captured.out.strip()) == pytest.approx(90.0)
 
 
 def test_cli_azimuthal_sector(capsys):
     code = main(["azimuthal-sector", "0.0,0.0", "0.0,10.0", "--width", "20"])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip()
+    start, end = [float(v) for v in captured.out.strip().split()]
+    assert start == pytest.approx(80.0)
+    assert end == pytest.approx(100.0)
 
 
 def test_cli_geojson_feature(capsys, valid_locators):
