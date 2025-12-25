@@ -2,6 +2,7 @@ import random
 
 import pytest
 
+import maidenhead.core as core
 from maidenhead import (
     adjacent,
     azimuth,
@@ -27,6 +28,7 @@ from maidenhead import (
     step,
     to_bbox,
     to_bbox_split,
+    split_bbox,
     to_center_latlon,
     to_geojson_polygon,
     to_geojson_feature,
@@ -55,6 +57,14 @@ def test_center_roundtrip_locators(valid_locators):
         assert back.locator == normalize(loc)
 
 
+def test_from_latlon_precision_10_roundtrip():
+    loc = from_latlon(53.365418, -2.574069, precision=10)
+    assert len(loc.locator) == 10
+    lat, lon = to_center_latlon(loc)
+    back = from_latlon(lat, lon, precision=10)
+    assert back.locator == loc.locator
+
+
 def test_bbox_contains_center(valid_locators):
     for loc in valid_locators:
         min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
@@ -72,7 +82,43 @@ def test_bbox_split_none_at_dateline_edge():
     loc = from_latlon(0.0, 179.999, precision=6)
     min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
     assert max_lon == pytest.approx(180.0)
-    assert to_bbox_split(loc) is None
+    west, east = to_bbox_split(loc)
+    assert west[1] == pytest.approx(min_lon)
+    assert west[3] == pytest.approx(180.0)
+    assert east[1] == pytest.approx(-180.0)
+    assert east[3] == pytest.approx(-180.0)
+
+
+def test_split_bbox_crosses_antimeridian():
+    bbox = (0.0, 170.0, 10.0, -170.0)
+    west, east = split_bbox(bbox)
+    assert west == (0.0, 170.0, 10.0, 180.0)
+    assert east == (0.0, -180.0, 10.0, -170.0)
+
+
+def test_split_bbox_none_for_normalized_bbox():
+    bbox = (0.0, 190.0, 10.0, 200.0)
+    assert split_bbox(bbox) is None
+
+
+def test_bbox_split_crosses_antimeridian_east(monkeypatch):
+    def fake_to_bbox(_locator):
+        return (0.0, 150.0, 10.0, 190.0)
+
+    monkeypatch.setattr(core, "to_bbox", fake_to_bbox)
+    west, east = to_bbox_split("AA00aa")
+    assert west == (0.0, 150.0, 10.0, 180.0)
+    assert east == (0.0, -180.0, 10.0, -170.0)
+
+
+def test_bbox_split_crosses_antimeridian_west(monkeypatch):
+    def fake_to_bbox(_locator):
+        return (0.0, -200.0, 10.0, -160.0)
+
+    monkeypatch.setattr(core, "to_bbox", fake_to_bbox)
+    west, east = to_bbox_split("AA00aa")
+    assert west == (0.0, 160.0, 10.0, 180.0)
+    assert east == (0.0, -180.0, 10.0, -160.0)
 
 
 def test_geojson_polygon_matches_bbox(valid_locators):
@@ -133,6 +179,12 @@ def test_contains_point_and_intersects_bbox(valid_locators):
     assert not intersects_bbox(loc, (80.0, 0.0, 85.0, 10.0))
 
 
+def test_intersects_bbox_dateline_wrap():
+    loc = from_latlon(0.0, 179.0, precision=4)
+    assert intersects_bbox(loc, (-1.0, 170.0, 1.0, -170.0))
+    assert not intersects_bbox(loc, (-1.0, -20.0, 1.0, -10.0))
+
+
 def test_intersects_polygon(valid_locators):
     loc = _pick_by_length(valid_locators, 4)
     lat, lon = to_center_latlon(loc)
@@ -160,11 +212,31 @@ def test_intersects_polygon_edge_crossing(valid_locators):
     assert intersects_polygon(loc, poly)
 
 
+def test_intersects_polygon_dateline_wrap():
+    loc = from_latlon(0.0, 179.0, precision=4)
+    lat, lon = to_center_latlon(loc)
+    poly = [
+        (lat - 0.5, 179.5),
+        (lat - 0.5, -179.5),
+        (lat + 0.5, -179.5),
+        (lat + 0.5, 179.5),
+    ]
+    assert intersects_polygon(loc, poly)
+
+
 def test_cover_circle_includes_center():
     center = (0.0, 0.0)
     loc = from_latlon(*center, precision=6)
     out = cover_circle(center, radius_km=5.0, precision=6)
     assert loc.locator in [g.locator for g in out]
+
+
+def test_cover_circle_dateline_wrap():
+    center = (0.0, 179.5)
+    out = cover_circle(center, radius_km=1200.0, precision=4)
+    lons = [to_center_latlon(loc)[1] for loc in out]
+    assert any(lon > 170.0 for lon in lons)
+    assert any(lon < -170.0 for lon in lons)
 
 
 def test_cover_line_includes_endpoints():
@@ -176,6 +248,15 @@ def test_cover_line_includes_endpoints():
     locs = {g.locator for g in out}
     assert loc_a.locator in locs
     assert loc_b.locator in locs
+
+
+def test_cover_line_dateline_wrap():
+    a = (0.0, 179.0)
+    b = (0.0, -179.0)
+    out = cover_line(a, b, precision=4)
+    lons = [to_center_latlon(loc)[1] for loc in out]
+    assert any(lon > 170.0 for lon in lons)
+    assert any(lon < -170.0 for lon in lons)
 
 
 def test_to_utm_zone():
@@ -294,7 +375,7 @@ def test_cell_size_distance_units(valid_locators):
 
 def test_from_latlon_precision_rejects_invalid():
     with pytest.raises(PrecisionError):
-        from_latlon(0.0, 0.0, precision=10)
+        from_latlon(0.0, 0.0, precision=12)
 
 
 def test_from_latlon_fallback_precision():

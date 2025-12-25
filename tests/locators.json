@@ -223,6 +223,62 @@
         "RJ03bo54",
         "RK12el76"
       ]
+    },
+    "10": {
+      "europe": [
+        "IO91wm34aa",
+        "JO02mk51bb",
+        "KN05bg90cc"
+      ],
+      "north_america": [
+        "EM48tx34dd",
+        "CM87wk56ee",
+        "FN31pr45ff"
+      ],
+      "brazil": [
+        "GG47wk78gg",
+        "FH16ab12hh"
+      ],
+      "china": [
+        "OM89ab12ii",
+        "PN29cd34jj"
+      ],
+      "japan": [
+        "PM95ke12kk",
+        "QM06aa34ll"
+      ],
+      "australia": [
+        "QF56od78mm",
+        "RG30aa12nn"
+      ],
+      "global": [
+        "IO83ri12oo",
+        "AA00aa00pp",
+        "RR99xx99qq",
+        "JJ05ae78rr",
+        "AF12bm34ss",
+        "AL33gx78tt",
+        "AO44mq12uu",
+        "BI60ps56vv",
+        "CE72kt90ww",
+        "DJ53fv11xx",
+        "EK02hc22aa",
+        "FI14ld33bb",
+        "GA66re44cc",
+        "HK94ap55dd",
+        "IL28tc66ee",
+        "JN58sd77ff",
+        "KK07nl88gg",
+        "KL98aq99hh",
+        "LM45wt01ii",
+        "NO75hb45jj",
+        "OJ33fx67kk",
+        "PF29as89ll",
+        "QG55nv10mm",
+        "QH88jr32nn",
+        "RJ03bo54oo",
+        "RK12el76pp"
+      ]
     }
   },
   "invalid_locators": {

@@ -65,6 +65,13 @@ def test_cli_from_latlon_comma_space(capsys):
     assert captured.out.strip()
 
 
+def test_cli_from_latlon_precision_10(capsys):
+    code = main(["from-latlon", "53.365418,-2.574069", "--precision", "10"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert len(captured.out.strip()) == 10
+
+
 def test_cli_parts_output(capsys, valid_locators):
     loc = valid_locators[0]
     code = main(["parts", loc])

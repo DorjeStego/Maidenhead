@@ -169,7 +169,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--precision",
         type=int,
         default=6,
-        help="Locator precision (character length): 2, 4, 6, 8 (default: 6)",
+        help="Locator precision (character length): 2, 4, 6, 8, 10 (default: 6)",
     )
     p_fll.add_argument(
         "--no-clamp",
