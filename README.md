@@ -20,6 +20,8 @@ mh normalize FN31pr
 
 mh normalize qf56oc
 
+mh normalize --stdin --format json
+
 #### validate
 
 Validate a locator. Exit code 0 if valid, 2 if invalid.
@@ -40,6 +42,10 @@ mh center QF56oc --digits 4
 
 mh center QF56oc --csv
 
+mh center --file locators.txt --format csv
+
+mh center --stdin --format json
+
 #### bbox
 
 Print bounding box as min_lat min_lon max_lat max_lon.
@@ -49,6 +55,8 @@ mh bbox EM12rx
 mh bbox EM12rx --digits 5
 
 mh bbox EM12rx --csv
+
+mh bbox --file locators.txt --format csv
 
 #### parts
 
@@ -90,6 +98,28 @@ mh from-latlon -22.9068 -43.1729 --precision 8
 
 mh from-latlon 90 180 --no-clamp   # error
 
+mh from-latlon --file coords.txt --format json
+
+mh from-latlon --stdin --format plain
+
+Batch input expects one lat,lon (or lat lon) per line.
+
+#### GeoJSON
+
+Emit GeoJSON for a locator or batch.
+
+mh geojson JO22db
+
+mh geojson JO22db --geojson-format featurecollection
+
+mh geojson --stdin --geojson-format featurecollection
+
+Notes:
+
+- Batch GeoJSON requires --geojson-format featurecollection.
+
+- JSON output uses orjson (install with pip install orjson).
+
 #### distance
 
 Distance (km) between two locators or points (lat,lon).
@@ -125,6 +155,14 @@ Most coordinate outputs share:
 - --digits N: decimal places for numeric output (default 6)
 
 - --csv: comma-separated output
+
+Batch input options:
+
+- --file PATH: read input lines from a file
+
+- --stdin: read input lines from stdin
+
+- --format plain|csv|json: output format for batch mode
 
 ### Exit Codes
 

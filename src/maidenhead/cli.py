@@ -14,6 +14,8 @@ from .core import (
     step,
     to_bbox,
     to_center_latlon,
+    to_geojson_feature,
+    to_geojson_feature_collection,
 )
 from .geo import bearing_deg, distance_km, midpoint
 from .errors import MaidenheadError, MissingDependencyError
@@ -100,6 +102,17 @@ def build_parser() -> argparse.ArgumentParser:
     # parts
     p_parts = sub.add_parser("parts", help="Print locator components (field/square/subsquare/etc).")
     p_parts.add_argument("locator", help="Maidenhead locator")
+
+    # geojson
+    p_geo = sub.add_parser("geojson", help="Emit GeoJSON for a locator or batch.")
+    p_geo.add_argument("locator", nargs="?", help="Maidenhead locator")
+    p_geo.add_argument(
+        "--geojson-format",
+        choices=["feature", "featurecollection"],
+        default="feature",
+        help="GeoJSON output type (default: feature).",
+    )
+    _add_batch_args(p_geo)
 
     # size
     p_size = sub.add_parser("size", help="Print cell size (width height).")
@@ -302,6 +315,23 @@ def main(argv: Sequence[str] | None = None) -> int:
             if g.ext5:
                 parts.append(f"ext5={g.ext5}")
             print(" ".join(parts))
+            return 0
+
+        if args.cmd == "geojson":
+            batch = _read_batch_lines(args.file, args.stdin)
+            if batch:
+                if args.geojson_format != "featurecollection":
+                    raise ValueError("Batch geojson requires --geojson-format featurecollection")
+                out = to_geojson_feature_collection(batch)
+                print(_json_dumps(out))
+                return 0
+            if args.locator is None:
+                raise ValueError("locator is required unless --file/--stdin is provided")
+            if args.geojson_format == "featurecollection":
+                out = to_geojson_feature_collection([args.locator])
+            else:
+                out = to_geojson_feature(args.locator)
+            print(_json_dumps(out))
             return 0
 
         if args.cmd == "size":

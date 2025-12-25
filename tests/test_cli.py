@@ -103,6 +103,29 @@ def test_cli_from_latlon_batch_json_stdin(monkeypatch, capsys):
     assert orjson.loads(captured.out.strip()) == ["IO83ri", "JO22db"]
 
 
+def test_cli_geojson_feature(capsys, valid_locators):
+    if orjson is None:
+        pytest.skip("orjson not installed")
+    loc = valid_locators[0]
+    code = main(["geojson", loc])
+    captured = capsys.readouterr()
+    assert code == 0
+    data = orjson.loads(captured.out.strip())
+    assert data["type"] == "Feature"
+
+
+def test_cli_geojson_featurecollection_stdin(monkeypatch, capsys, valid_locators):
+    if orjson is None:
+        pytest.skip("orjson not installed")
+    data = "\n".join(valid_locators[:2]) + "\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["geojson", "--stdin", "--geojson-format", "featurecollection"])
+    captured = capsys.readouterr()
+    assert code == 0
+    out = orjson.loads(captured.out.strip())
+    assert out["type"] == "FeatureCollection"
+
+
 def test_cli_validate_invalid(invalid_locators):
     for loc in invalid_locators:
         code = main(["validate", loc])
