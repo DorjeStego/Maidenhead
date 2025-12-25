@@ -170,6 +170,53 @@ def parse(locator: str) -> GridSquare:
     return GridSquare(norm)
 
 
+def format_locator(
+    locator: LocatorLike,
+    *,
+    precision: int,
+    mode: Literal["truncate", "center", "error"] = "center",
+) -> GridSquare:
+    """
+    Convert a locator to a target precision.
+
+    mode:
+      - "truncate": drop pairs to reach target precision
+      - "center": use the locator center to re-encode at target precision
+      - "error": raise if precision differs
+    """
+    s = _coerce_locator_text(locator)
+    s = normalize(s)
+    p = len(s)
+    target = validate_precision(int(precision))
+
+    if target == p:
+        return GridSquare(s)
+
+    if mode == "error":
+        raise PrecisionError(
+            "precision does not match locator",
+            precision=target,
+            locator_precision=p,
+        )
+
+    if target < p:
+        if mode not in ("truncate", "center"):
+            raise ValueError(f"Unknown mode: {mode!r}")
+        return parent(s, precision=target)
+
+    # target > p
+    if mode == "truncate":
+        raise PrecisionError(
+            "cannot truncate to a higher precision",
+            precision=target,
+            locator_precision=p,
+        )
+    if mode == "center":
+        lat, lon = to_center_latlon(s)
+        return from_latlon(lat, lon, precision=target)
+    raise ValueError(f"Unknown mode: {mode!r}")
+
+
 def _decode_indices(locator: str) -> tuple[list[int], list[int]]:
     """
     Decode a canonical (or at least validated) locator into index lists.
@@ -220,6 +267,31 @@ def to_bbox(locator: LocatorLike) -> tuple[float, float, float, float]:
         lat_min += lat_indices[i] * lat_cell
 
     return (lat_min, lon_min, lat_min + lat_cell, lon_min + lon_cell)
+
+
+def to_bbox_split(
+    locator: LocatorLike,
+) -> tuple[tuple[float, float, float, float], tuple[float, float, float, float]] | None:
+    """
+    Return (west_bbox, east_bbox) if the cell crosses the antimeridian.
+
+    Each bbox is (min_lat, min_lon, max_lat, max_lon). Returns None if no split.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    if max_lon <= C.LON_MAX_DEG and min_lon >= C.LON_MIN_DEG:
+        return None
+
+    if max_lon > C.LON_MAX_DEG:
+        west = (min_lat, min_lon, max_lat, C.LON_MAX_DEG)
+        east = (min_lat, C.LON_MIN_DEG, max_lat, max_lon - C.LON_SPAN_DEG)
+        return (west, east)
+
+    if min_lon < C.LON_MIN_DEG:
+        west = (min_lat, min_lon + C.LON_SPAN_DEG, max_lat, C.LON_MAX_DEG)
+        east = (min_lat, C.LON_MIN_DEG, max_lat, max_lon)
+        return (west, east)
+
+    return None
 
 
 def to_center_latlon(locator: LocatorLike) -> tuple[float, float]:
@@ -624,6 +696,9 @@ def neighbors(locator: LocatorLike, *, ring: int = 1, diagonals: bool = True) ->
 
     Implementation is robust (works across carries) by stepping in degrees from
     the cell center and re-encoding at the same precision.
+
+    Note: near the poles, latitude clamping can cause distinct offsets to map
+    to the same cell; duplicates are deduplicated in the output.
     """
     require(isinstance(ring, int) and ring >= 1, ValueError, "ring must be an integer >= 1", ring=ring)
 

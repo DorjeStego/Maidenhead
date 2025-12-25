@@ -9,6 +9,7 @@ from . import __version__
 from .core import (
     cell_size,
     from_latlon,
+    format_locator,
     normalize,
     parse,
     step,
@@ -156,6 +157,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-clamp",
         action="store_true",
         help="Disable boundary clamping (lat=90/lon=180 will error).",
+    )
+
+    # format
+    p_fmt = sub.add_parser("format", help="Coerce locator precision.")
+    p_fmt.add_argument("locator", help="Maidenhead locator")
+    p_fmt.add_argument(
+        "-p",
+        "--precision",
+        type=int,
+        required=True,
+        help="Target locator precision (character length).",
+    )
+    p_fmt.add_argument(
+        "--mode",
+        choices=["truncate", "center", "error"],
+        default="center",
+        help="Precision change mode (default: center).",
     )
 
     # distance
@@ -382,6 +400,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 precision=args.precision,
                 clamp=(not args.no_clamp),
             )
+            print(g.locator)
+            return 0
+
+        if args.cmd == "format":
+            g = format_locator(args.locator, precision=args.precision, mode=args.mode)
             print(g.locator)
             return 0
 

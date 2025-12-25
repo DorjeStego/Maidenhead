@@ -10,12 +10,14 @@ from maidenhead import (
     contains,
     corners,
     from_latlon,
+    format_locator,
     initial_bearing,
     neighbors,
     normalize,
     parent,
     step,
     to_bbox,
+    to_bbox_split,
     to_center_latlon,
     to_geojson_polygon,
     to_geojson_feature,
@@ -49,6 +51,11 @@ def test_bbox_contains_center(valid_locators):
         lat, lon = to_center_latlon(loc)
         assert min_lat <= lat <= max_lat
     assert min_lon <= lon <= max_lon
+
+
+def test_bbox_split_none_for_standard_cells(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    assert to_bbox_split(loc) is None
 
 
 def test_geojson_polygon_matches_bbox(valid_locators):
@@ -194,6 +201,24 @@ def test_from_latlon_fallback_precision():
     assert len(loc.locator) == 4
     loc2 = from_latlon(0, 0, precision=8, resolution_deg=1.0)
     assert len(loc2.locator) == 4
+
+
+def test_format_locator_truncate(valid_locators):
+    loc = _pick_by_length(valid_locators, 6)
+    out = format_locator(loc, precision=4, mode="truncate")
+    assert out.locator == normalize(loc)[:4]
+
+
+def test_format_locator_center(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    out = format_locator(loc, precision=6, mode="center")
+    assert len(out.locator) == 6
+
+
+def test_format_locator_error(valid_locators):
+    loc = _pick_by_length(valid_locators, 6)
+    with pytest.raises(PrecisionError):
+        format_locator(loc, precision=4, mode="error")
 
 
 def test_adjacent_cardinal_matches_neighbors(valid_locators):

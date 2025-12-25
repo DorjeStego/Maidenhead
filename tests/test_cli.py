@@ -103,6 +103,14 @@ def test_cli_from_latlon_batch_json_stdin(monkeypatch, capsys):
     assert orjson.loads(captured.out.strip()) == ["IO83ri", "JO22db"]
 
 
+def test_cli_format_truncate(capsys, valid_locators):
+    loc = valid_locators[0]
+    code = main(["format", loc, "--precision", "2", "--mode", "truncate"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert len(captured.out.strip()) == 2
+
+
 def test_cli_geojson_feature(capsys, valid_locators):
     if orjson is None:
         pytest.skip("orjson not installed")

@@ -104,6 +104,16 @@ Convert latitude/longitude to a locator.
 
 Batch input expects one lat,lon (or lat lon) per line.
 
+#### format
+
+Coerce locator precision.
+
+* mh format IO83rj --precision 4 --mode truncate
+
+* mh format IO83rj --precision 6 --mode center
+
+* mh format IO83rj --precision 6 --mode error
+
 #### GeoJSON
 
 Emit GeoJSON for a locator or batch.
