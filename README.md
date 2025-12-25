@@ -16,91 +16,91 @@ mh <command> [options] [args]
 
 Normalize locator casing and validate.
 
-mh normalize FN31pr
+* mh normalize FN31pr
 
-mh normalize qf56oc
+* mh normalize qf56oc
 
-mh normalize --stdin --format json
+* mh normalize --stdin --format json
 
 #### validate
 
 Validate a locator. Exit code 0 if valid, 2 if invalid.
 
-mh validate JO22db
+* mh validate JO22db
 
-mh validate AA0
+* mh validate AA0
 
-mh validate AA0 --print   # prints "invalid"
+* mh validate AA0 --print   # prints "invalid"
 
 #### center
 
 Print the center latitude/longitude of a locator.
 
-mh center QF56oc
+* mh center QF56oc
 
-mh center QF56oc --digits 4
+* mh center QF56oc --digits 4
 
-mh center QF56oc --csv
+* mh center QF56oc --csv
 
-mh center --file locators.txt --format csv
+* mh center --file locators.txt --format csv
 
-mh center --stdin --format json
+* mh center --stdin --format json
 
 #### bbox
 
 Print bounding box as min_lat min_lon max_lat max_lon.
 
-mh bbox EM12rx
+* mh bbox EM12rx
 
-mh bbox EM12rx --digits 5
+* mh bbox EM12rx --digits 5
 
-mh bbox EM12rx --csv
+* mh bbox EM12rx --csv
 
-mh bbox --file locators.txt --format csv
+* mh bbox --file locators.txt --format csv
 
 #### parts
 
 Print locator components (field/square/subsquare/etc).
 
-mh parts IO83rj42
+* mh parts IO83rj42
 
-mh parts FN31pr
+* mh parts FN31pr
 
 #### size
 
 Print cell size (width height) for a locator.
 
-mh size IO83rj
+* mh size IO83rj
 
-mh size IO83rj --unit km
+* mh size IO83rj --unit km
 
-mh size IO83rj --unit km --lon-at 45
+* mh size IO83rj --unit km --lon-at 45
 
-mh size IO83rj --unit miles --csv
+* mh size IO83rj --unit miles --csv
 
 #### step
 
 Move a locator by a number of grid cells.
 
-mh step IO83rj --dlat-cells 1
+* mh step IO83rj --dlat-cells 1
 
-mh step IO83rj --dlon-cells -2
+* mh step IO83rj --dlon-cells -2
 
 #### from-latlon
 
 Convert latitude/longitude to a locator.
 
-mh from-latlon 35.6895 139.6917
+* mh from-latlon 35.6895 139.6917
 
-mh from-latlon 35.6895,139.6917
+* mh from-latlon 35.6895,139.6917
 
-mh from-latlon -22.9068 -43.1729 --precision 8
+* mh from-latlon -22.9068 -43.1729 --precision 8
 
-mh from-latlon 90 180 --no-clamp   # error
+* mh from-latlon 90 180 --no-clamp   # error
 
-mh from-latlon --file coords.txt --format json
+* mh from-latlon --file coords.txt --format json
 
-mh from-latlon --stdin --format plain
+* mh from-latlon --stdin --format plain
 
 Batch input expects one lat,lon (or lat lon) per line.
 
@@ -108,11 +108,11 @@ Batch input expects one lat,lon (or lat lon) per line.
 
 Emit GeoJSON for a locator or batch.
 
-mh geojson JO22db
+* mh geojson JO22db
 
-mh geojson JO22db --geojson-format featurecollection
+* mh geojson JO22db --geojson-format featurecollection
 
-mh geojson --stdin --geojson-format featurecollection
+* mh geojson --stdin --geojson-format featurecollection
 
 Notes:
 
@@ -124,37 +124,37 @@ Notes:
 
 Distance (km) between two locators or points (lat,lon).
 
-mh distance IO83rj FN31pr
+* mh distance IO83rj FN31pr
 
-mh distance -33.8688,151.2093 51.5074,-0.1278
+* mh distance -33.8688,151.2093 51.5074,-0.1278
 
-mh distance IO83rj FN31pr --method geodesic
+* mh distance IO83rj FN31pr --method geodesic
 
 Mixed input is supported (locator and lat,lon together):
 
-mh distance IO83rj 51.5074,-0.1278
+* mh distance IO83rj 51.5074,-0.1278
 
 #### bearing
 
 Initial bearing (degrees) from A to B.
 
-mh bearing CM98jw JO22db
+* mh bearing CM98jw JO22db
 
-mh bearing 37.7749,-122.4194 48.8566,2.3522
+* mh bearing 37.7749,-122.4194 48.8566,2.3522
 
 Mixed input is supported (locator and lat,lon together):
 
-mh bearing IO83rj 51.5074,-0.1278
+* mh bearing IO83rj 51.5074,-0.1278
 
 #### midpoint
 
 Great-circle midpoint between A and B.
 
-mh midpoint RF82ib JP12fk
+* mh midpoint RF82ib JP12fk
 
-mh midpoint 40.4168,-3.7038 55.7558,37.6173
+* mh midpoint 40.4168,-3.7038 55.7558,37.6173
 
-mh midpoint RF82ib JP12fk --csv
+* mh midpoint RF82ib JP12fk --csv
 
 ### Global Options
 
