@@ -1,0 +1,37 @@
+{
+  "center": [
+    {
+      "locator": "IO83ri",
+      "digits": 6,
+      "output": "53.354167 -2.541667"
+    }
+  ],
+  "bbox": [
+    {
+      "locator": "IO83ri",
+      "digits": 6,
+      "output": "53.333333 -2.583333 53.375000 -2.500000"
+    }
+  ],
+  "distance": [
+    {
+      "points": ["53.073219,-3.934023", "51.5074,-0.1278"],
+      "digits": 6,
+      "output": "311.914447"
+    }
+  ],
+  "bearing": [
+    {
+      "points": ["0.0,0.0", "0.0,10.0"],
+      "digits": 6,
+      "output": "90.000000"
+    }
+  ],
+  "from_latlon": [
+    {
+      "latlon": "53.365418,-2.574069",
+      "precision": 6,
+      "output": "IO83ri"
+    }
+  ]
+}
