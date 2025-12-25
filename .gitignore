@@ -44,7 +44,7 @@ AGENTS.md
 # General #
 ##########
 __pycache__
-dist
+# dist
 maidenhead.egg-info
 build
 src/maidenhead.egg-info

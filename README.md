@@ -76,7 +76,25 @@ Print cell size (width height) for a locator.
 
 * mh size IO83rj --unit km --lon-at 45
 
+* mh size IO83rj --unit km --at-lat 10 --method spherical
+
 * mh size IO83rj --unit miles --csv
+
+#### area
+
+Print cell area (km^2).
+
+* mh area IO83rj
+
+* mh area IO83rj --method geodesic
+
+#### diagonal
+
+Print cell diagonal length (km).
+
+* mh diagonal IO83rj
+
+* mh diagonal IO83rj --method geodesic
 
 #### step
 
@@ -94,6 +112,8 @@ Convert latitude/longitude to a locator.
 
 * mh from-latlon 35.6895,139.6917
 
+* mh from-latlon 53.073219, -3.934023
+
 * mh from-latlon -22.9068 -43.1729 --precision 8
 
 * mh from-latlon 90 180 --no-clamp   # error
@@ -103,6 +123,16 @@ Convert latitude/longitude to a locator.
 * mh from-latlon --stdin --format plain
 
 Batch input expects one lat,lon (or lat lon) per line.
+
+#### format
+
+Coerce locator precision.
+
+* mh format IO83rj --precision 4 --mode truncate
+
+* mh format IO83rj --precision 6 --mode center
+
+* mh format IO83rj --precision 6 --mode error
 
 #### GeoJSON
 
@@ -120,6 +150,40 @@ Notes:
 
 - JSON output uses orjson (install with pip install orjson).
 
+#### utm
+
+Print the UTM zone for a locator.
+
+* mh utm IO83rj
+
+#### cover-circle
+
+Cover a circle with grid squares (space-separated output by default).
+
+* mh cover-circle 0.0,0.0 5 --precision 4
+
+* mh cover-circle IO83rj 10 --precision 6 --csv
+
+* mh cover-circle 53.073219, -3.934023 5 --precision 4
+
+Batch input expects: center radius_km precision
+
+* mh cover-circle --stdin --format json
+
+#### cover-line
+
+Cover a line with grid squares.
+
+* mh cover-line 0.0,0.0 1.0,1.0 --precision 4
+
+* mh cover-line IO83rj FN31pr --precision 4 --method geodesic
+
+* mh cover-line 53.073219, -3.934023 51.5074,-0.1278 --precision 4
+
+Batch input expects: start end precision
+
+* mh cover-line --file lines.txt --format csv
+
 #### distance
 
 Distance (km) between two locators or points (lat,lon).
@@ -134,6 +198,10 @@ Mixed input is supported (locator and lat,lon together):
 
 * mh distance IO83rj 51.5074,-0.1278
 
+Comma-space input is supported:
+
+* mh distance 53.073219, -3.934023 51.5074,-0.1278
+
 #### bearing
 
 Initial bearing (degrees) from A to B.
@@ -145,6 +213,8 @@ Initial bearing (degrees) from A to B.
 Mixed input is supported (locator and lat,lon together):
 
 * mh bearing IO83rj 51.5074,-0.1278
+
+* mh bearing 53.073219, -3.934023 51.5074,-0.1278
 
 #### midpoint
 

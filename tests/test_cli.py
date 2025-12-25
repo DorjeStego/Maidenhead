@@ -1,8 +1,14 @@
 import random
 import sys
 from io import StringIO
+from pathlib import Path
 
 import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 try:
     import orjson  # type: ignore
@@ -45,6 +51,20 @@ def test_cli_from_latlon_single_arg(capsys):
     assert captured.out.strip() == "IO83ri"
 
 
+def test_cli_from_latlon_space_separated(capsys):
+    code = main(["from-latlon", "53.073219", "-3.934023"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
+def test_cli_from_latlon_comma_space(capsys):
+    code = main(["from-latlon", "53.073219,", "-3.934023"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
 def test_cli_parts_output(capsys, valid_locators):
     loc = valid_locators[0]
     code = main(["parts", loc])
@@ -80,6 +100,37 @@ def test_cli_normalize_batch_json_stdin(monkeypatch, capsys):
     assert orjson.loads(captured.out.strip()) == ["IO83ri", "FN31pr"]
 
 
+def test_cli_batch_conflicting_inputs(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", StringIO("IO83rj\n"))
+    code = main(["normalize", "--stdin", "--file", "locators.txt"])
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "error:" in captured.err
+
+
+def test_cli_normalize_requires_locator(capsys):
+    code = main(["normalize"])
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "error:" in captured.err
+
+
+def test_cli_from_latlon_batch_invalid_line(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", StringIO("53.36,-2.57,1\n"))
+    code = main(["from-latlon", "--stdin", "--format", "plain"])
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "error:" in captured.err
+
+
+def test_cli_geojson_batch_requires_featurecollection(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", StringIO("IO83rj\n"))
+    code = main(["geojson", "--stdin"])
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "error:" in captured.err
+
+
 def test_cli_center_batch_csv_file(tmp_path, capsys, valid_locators):
     locs = valid_locators[:2]
     file_path = tmp_path / "locs.txt"
@@ -101,6 +152,66 @@ def test_cli_from_latlon_batch_json_stdin(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert code == 0
     assert orjson.loads(captured.out.strip()) == ["IO83ri", "JO22db"]
+
+
+def test_cli_format_truncate(capsys, valid_locators):
+    loc = valid_locators[0]
+    code = main(["format", loc, "--precision", "2", "--mode", "truncate"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert len(captured.out.strip()) == 2
+
+
+def test_cli_size_at_lat(capsys, valid_locators):
+    loc = valid_locators[0]
+    code = main(["size", loc, "--unit", "km", "--at-lat", "10"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert " " in captured.out.strip()
+
+
+def test_cli_area_diagonal(capsys, valid_locators):
+    loc = valid_locators[0]
+    code = main(["area", loc])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
+def test_cli_distance_comma_space(capsys):
+    code = main(["distance", "53.073219,", "-3.934023", "51.5074,-0.1278"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
+def test_cli_distance_space_separated(capsys):
+    code = main(["distance", "53.073219", "-3.934023", "51.5074", "-0.1278"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
+def test_cli_utm(capsys, valid_locators):
+    loc = valid_locators[0]
+    code = main(["utm", loc])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
+def test_cli_cover_circle(capsys):
+    code = main(["cover-circle", "0.0,0.0", "5", "--precision", "4"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
+def test_cli_cover_line(capsys):
+    code = main(["cover-line", "0.0,0.0", "1.0,1.0", "--precision", "4"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
 
 
 def test_cli_geojson_feature(capsys, valid_locators):

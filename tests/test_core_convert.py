@@ -5,17 +5,28 @@ import pytest
 from maidenhead import (
     adjacent,
     azimuth,
+    cover_circle,
+    cover_line,
+    contains_point,
+    intersects_bbox,
+    intersects_polygon,
     cell_size,
+    cell_size_deg,
+    cell_size_km,
+    area_km2,
+    diagonal_km,
     children,
     contains,
     corners,
     from_latlon,
+    format_locator,
     initial_bearing,
     neighbors,
     normalize,
     parent,
     step,
     to_bbox,
+    to_bbox_split,
     to_center_latlon,
     to_geojson_polygon,
     to_geojson_feature,
@@ -23,6 +34,7 @@ from maidenhead import (
     to_geojson_bbox,
     to_geojson_envelope,
     to_wkt,
+    to_utm_zone,
 )
 from maidenhead import constants as C
 from maidenhead.errors import PrecisionError
@@ -48,7 +60,19 @@ def test_bbox_contains_center(valid_locators):
         min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
         lat, lon = to_center_latlon(loc)
         assert min_lat <= lat <= max_lat
-    assert min_lon <= lon <= max_lon
+        assert min_lon <= lon <= max_lon
+
+
+def test_bbox_split_none_for_standard_cells(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    assert to_bbox_split(loc) is None
+
+
+def test_bbox_split_none_at_dateline_edge():
+    loc = from_latlon(0.0, 179.999, precision=6)
+    min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
+    assert max_lon == pytest.approx(180.0)
+    assert to_bbox_split(loc) is None
 
 
 def test_geojson_polygon_matches_bbox(valid_locators):
@@ -97,6 +121,55 @@ def test_wkt_matches_bbox(valid_locators):
         f"{max_lon} {max_lat}, {min_lon} {max_lat}, {min_lon} {min_lat}))"
     )
     assert wkt == expected
+
+
+def test_contains_point_and_intersects_bbox(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    lat, lon = to_center_latlon(loc)
+    assert contains_point(loc, lat, lon)
+    assert not contains_point(loc, 89.9, 0.0)
+    bbox = to_bbox(loc)
+    assert intersects_bbox(loc, bbox)
+    assert not intersects_bbox(loc, (80.0, 0.0, 85.0, 10.0))
+
+
+def test_intersects_polygon(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    lat, lon = to_center_latlon(loc)
+    poly = [
+        (lat - 0.1, lon - 0.1),
+        (lat - 0.1, lon + 0.1),
+        (lat + 0.1, lon + 0.1),
+        (lat + 0.1, lon - 0.1),
+    ]
+    assert intersects_polygon(loc, poly)
+    far_poly = [(80.0, 0.0), (80.0, 1.0), (81.0, 1.0), (81.0, 0.0)]
+    assert not intersects_polygon(loc, far_poly)
+
+
+def test_cover_circle_includes_center():
+    center = (0.0, 0.0)
+    loc = from_latlon(*center, precision=6)
+    out = cover_circle(center, radius_km=5.0, precision=6)
+    assert loc.locator in [g.locator for g in out]
+
+
+def test_cover_line_includes_endpoints():
+    a = (0.0, 0.0)
+    b = (1.0, 1.0)
+    loc_a = from_latlon(*a, precision=4)
+    loc_b = from_latlon(*b, precision=4)
+    out = cover_line(a, b, precision=4)
+    locs = {g.locator for g in out}
+    assert loc_a.locator in locs
+    assert loc_b.locator in locs
+
+
+def test_to_utm_zone():
+    loc = from_latlon(0.0, 0.0, precision=4)
+    assert to_utm_zone(loc) == "31N"
+    loc_s = from_latlon(-10.0, 33.0, precision=4)
+    assert to_utm_zone(loc_s) == "36S"
 
 
 def test_corners_match_bbox(valid_locators):
@@ -159,6 +232,28 @@ def test_cell_size_degrees_from_precision():
     assert height == pytest.approx(step.lat_step_deg)
 
 
+def test_cell_size_deg_matches_cell_size(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    assert cell_size_deg(loc) == cell_size(loc, unit="deg")
+
+
+def test_cell_size_km_at_lat(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    width_center, height_center = cell_size_km(loc)
+    width_at = cell_size_km(loc, at_lat=10.0)[0]
+    assert height_center > 0
+    assert width_center > 0
+    assert width_at > 0
+
+
+def test_area_km2_and_diagonal(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    area = area_km2(loc)
+    diag = diagonal_km(loc)
+    assert area > 0
+    assert diag > 0
+
+
 def test_cell_size_degrees_from_locator(valid_locators):
     loc = _pick_by_length(valid_locators, 6)
     width, height = cell_size(loc)
@@ -194,6 +289,24 @@ def test_from_latlon_fallback_precision():
     assert len(loc.locator) == 4
     loc2 = from_latlon(0, 0, precision=8, resolution_deg=1.0)
     assert len(loc2.locator) == 4
+
+
+def test_format_locator_truncate(valid_locators):
+    loc = _pick_by_length(valid_locators, 6)
+    out = format_locator(loc, precision=4, mode="truncate")
+    assert out.locator == normalize(loc)[:4]
+
+
+def test_format_locator_center(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    out = format_locator(loc, precision=6, mode="center")
+    assert len(out.locator) == 6
+
+
+def test_format_locator_error(valid_locators):
+    loc = _pick_by_length(valid_locators, 6)
+    with pytest.raises(PrecisionError):
+        format_locator(loc, precision=4, mode="error")
 
 
 def test_adjacent_cardinal_matches_neighbors(valid_locators):
