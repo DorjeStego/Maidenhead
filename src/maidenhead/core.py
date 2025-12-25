@@ -278,18 +278,19 @@ def to_bbox(locator: LocatorLike) -> tuple[float, float, float, float]:
 
 def to_bbox_split(
     locator: LocatorLike,
-) -> tuple[tuple[float, float, float, float], tuple[float, float, float, float]] | None:
+) -> tuple[float, float, float, float] | tuple[tuple[float, float, float, float], tuple[float, float, float, float]] | None:
     """
     Return (west_bbox, east_bbox) if the cell crosses the antimeridian.
 
     Each bbox is (min_lat, min_lon, max_lat, max_lon). Returns None if no split.
+    If only one side is non-degenerate, returns that bbox.
     """
     return split_bbox(to_bbox(locator))
 
 
 def split_bbox(
     bbox: tuple[float, float, float, float],
-) -> tuple[tuple[float, float, float, float], tuple[float, float, float, float]] | None:
+) -> tuple[float, float, float, float] | tuple[tuple[float, float, float, float], tuple[float, float, float, float]] | None:
     """
     Split a bbox that crosses the antimeridian into (west, east) bboxes.
 
@@ -304,11 +305,15 @@ def split_bbox(
 
     west = (min_lat, min_lon, max_lat, C.LON_MAX_DEG)
     east = (min_lat, C.LON_MIN_DEG, max_lat, max_lon)
-    if west[1] == west[3]:
-        return None
-    if east[1] == east[3]:
-        return None
-    return (west, east)
+    has_west = west[1] != west[3]
+    has_east = east[1] != east[3]
+    if has_west and has_east:
+        return (west, east)
+    if has_west:
+        return west
+    if has_east:
+        return east
+    return None
 
 
 def contains_point(locator: LocatorLike, lat: float, lon: float) -> bool:
