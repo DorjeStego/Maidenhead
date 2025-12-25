@@ -304,6 +304,10 @@ def split_bbox(
 
     west = (min_lat, min_lon, max_lat, C.LON_MAX_DEG)
     east = (min_lat, C.LON_MIN_DEG, max_lat, max_lon)
+    if west[1] == west[3]:
+        return None
+    if east[1] == east[3]:
+        return None
     return (west, east)
 
 
