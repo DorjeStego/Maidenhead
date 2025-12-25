@@ -359,6 +359,28 @@ def test_cli_geojson_featurecollection_stdin(monkeypatch, capsys, valid_locators
     assert out["type"] == "FeatureCollection"
 
 
+def test_cli_cover_circle_batch_csv_stdin(monkeypatch, capsys):
+    data = "JJ00 5 4\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["cover-circle", "0.0,0.0", "5", "--precision", "4", "--stdin", "--format", "csv"])
+    captured = capsys.readouterr()
+    assert code == 0
+    line = captured.out.strip()
+    assert line
+    assert " " not in line
+
+
+def test_cli_cover_line_batch_csv_stdin(monkeypatch, capsys):
+    data = "JJ00 JJ11 4\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["cover-line", "0.0,0.0", "1.0,1.0", "--precision", "4", "--stdin", "--format", "csv"])
+    captured = capsys.readouterr()
+    assert code == 0
+    line = captured.out.strip()
+    assert line
+    assert "," in line
+
+
 def test_cli_validate_invalid(invalid_locators):
     for loc in invalid_locators:
         code = main(["validate", loc])

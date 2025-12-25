@@ -165,6 +165,8 @@ def from_latlon_many(
 
     # Pandas Series preservation (if both are Series, we preserve index)
     if return_type == "auto" and _is_pandas_series(lats) and _is_pandas_series(lons):
+        if len(lats) != len(lons):
+            raise ValueError("lats and lons must have the same length")
         out = [
             _coerce_locator_out(
                 from_latlon(lat, lon, precision=precision, resolution_deg=resolution_deg)
@@ -227,6 +229,8 @@ def from_latlon_many(
             raise ImportError("return_type='pandas' requires pandas") from e
 
         if _is_pandas_series(lats) and _is_pandas_series(lons):
+            if len(lats) != len(lons):
+                raise ValueError("lats and lons must have the same length")
             index = lats.index
             name = getattr(lats, "name", None)
             lat_list = lats.tolist()
