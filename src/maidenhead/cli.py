@@ -222,7 +222,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # cover-circle
     p_cc = sub.add_parser("cover-circle", help="Cover circle with grid squares.")
-    p_cc.add_argument("center", help="Center as locator or 'lat,lon'")
+    p_cc.add_argument("center", nargs="+", help="Center as locator or 'lat,lon'")
     p_cc.add_argument("radius_km", type=float, help="Radius in kilometers")
     p_cc.add_argument(
         "-p",
@@ -236,8 +236,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # cover-line
     p_cl = sub.add_parser("cover-line", help="Cover line with grid squares.")
-    p_cl.add_argument("a", help="Start as locator or 'lat,lon'")
-    p_cl.add_argument("b", help="End as locator or 'lat,lon'")
+    p_cl.add_argument("points", nargs="+", help="Start and end as locators or 'lat,lon'")
     p_cl.add_argument(
         "-p",
         "--precision",
@@ -256,8 +255,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     # distance
     p_dist = sub.add_parser("distance", help="Distance (km) between two locators or points.")
-    p_dist.add_argument("a", help="Locator or 'lat,lon' (e.g. IO91wm or 51.5,-0.12)")
-    p_dist.add_argument("b", help="Locator or 'lat,lon' (e.g. FN31pr or 40.7,-74.0)")
+    p_dist.add_argument(
+        "points",
+        nargs="+",
+        help="Two points as locators or 'lat,lon' (e.g. IO91wm 51.5,-0.12)",
+    )
     p_dist.add_argument(
         "--method",
         choices=["haversine", "geodesic"],
@@ -268,14 +270,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     # bearing
     p_bear = sub.add_parser("bearing", help="Initial bearing (deg) from A to B.")
-    p_bear.add_argument("a", help="Locator or 'lat,lon'")
-    p_bear.add_argument("b", help="Locator or 'lat,lon'")
+    p_bear.add_argument("points", nargs="+", help="Two points as locators or 'lat,lon'")
     _add_common_args(p_bear)
 
     # midpoint
     p_mid = sub.add_parser("midpoint", help="Great-circle midpoint between A and B (lat lon).")
-    p_mid.add_argument("a", help="Locator or 'lat,lon'")
-    p_mid.add_argument("b", help="Locator or 'lat,lon'")
+    p_mid.add_argument("points", nargs="+", help="Two points as locators or 'lat,lon'")
     _add_common_args(p_mid)
 
     return parser
@@ -297,19 +297,60 @@ def _parse_point(s: str):
     return normalize(txt)
 
 
+def _split_latlon_parts(parts: Sequence[str]) -> tuple[float, float] | None:
+    stripped = [p.strip() for p in parts]
+    joined = " ".join(stripped).strip()
+    if "," in joined:
+        pieces = [p.strip() for p in joined.split(",")]
+        if len(pieces) == 2 and pieces[0] and pieces[1]:
+            return (float(pieces[0]), float(pieces[1]))
+    if len(stripped) == 2:
+        try:
+            return (float(stripped[0]), float(stripped[1]))
+        except ValueError:
+            return None
+    return None
+
+
 def _format_locator_list(locators: Sequence[str], *, sep: str) -> str:
     return sep.join(locators)
 
 
 def _parse_latlon(args: Sequence[str]) -> tuple[float, float]:
-    if len(args) == 1 and "," in args[0]:
+    if len(args) == 1:
         parts = [p.strip() for p in args[0].split(",")]
-        if len(parts) != 2:
-            raise ValueError("Latitude/longitude must be 'lat lon' or 'lat,lon'")
-        return (float(parts[0]), float(parts[1]))
+        if len(parts) == 2:
+            return (float(parts[0]), float(parts[1]))
+        raise ValueError("Latitude/longitude must be 'lat lon' or 'lat,lon'")
     if len(args) == 2:
+        latlon = _split_latlon_parts(args)
+        if latlon is not None:
+            return latlon
         return (float(args[0]), float(args[1]))
     raise ValueError("Latitude/longitude must be 'lat lon' or 'lat,lon'")
+
+
+def _parse_point_parts(parts: Sequence[str]) -> tuple[float, float] | str:
+    latlon = _split_latlon_parts(parts)
+    if latlon is not None:
+        return latlon
+    if len(parts) == 1:
+        return _parse_point(parts[0])
+    raise ValueError("Point must be 'lat,lon' or a locator")
+
+
+def _split_two_points(args: Sequence[str]) -> tuple[list[str], list[str]]:
+    if len(args) == 2:
+        return [args[0]], [args[1]]
+    if len(args) == 3:
+        if _split_latlon_parts(args[:2]) is not None:
+            return list(args[:2]), [args[2]]
+        if _split_latlon_parts(args[1:3]) is not None:
+            return [args[0]], list(args[1:3])
+        raise ValueError("expected two points")
+    if len(args) == 4:
+        return list(args[:2]), list(args[2:4])
+    raise ValueError("expected two points")
 
 
 def _read_batch_lines(file_path: str | None, use_stdin: bool) -> list[str]:
@@ -490,7 +531,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     sep = "," if args.format == "csv" else " "
                     print("\n".join(sep.join(row) for row in out))
                 return 0
-            center = _parse_point(args.center)
+            center = _parse_point_parts(args.center)
             out = cover_circle(center, args.radius_km, args.precision)
             sep = "," if args.csv else " "
             print(_format_locator_list([g.locator for g in out], sep=sep))
@@ -514,7 +555,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                     sep = "," if args.format == "csv" else " "
                     print("\n".join(sep.join(row) for row in out))
                 return 0
-            out = cover_line(_parse_point(args.a), _parse_point(args.b), args.precision, method=args.method)
+            a_parts, b_parts = _split_two_points(args.points)
+            out = cover_line(
+                _parse_point_parts(a_parts),
+                _parse_point_parts(b_parts),
+                args.precision,
+                method=args.method,
+            )
             sep = "," if args.csv else " "
             print(_format_locator_list([g.locator for g in out], sep=sep))
             return 0
@@ -554,22 +601,25 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.cmd == "distance":
-            a = _parse_point(args.a)
-            b = _parse_point(args.b)
+            a_parts, b_parts = _split_two_points(args.points)
+            a = _parse_point_parts(a_parts)
+            b = _parse_point_parts(b_parts)
             d = distance_km(a, b, method=args.method)
             print(_fmt_float(d, args.digits))
             return 0
 
         if args.cmd == "bearing":
-            a = _parse_point(args.a)
-            b = _parse_point(args.b)
+            a_parts, b_parts = _split_two_points(args.points)
+            a = _parse_point_parts(a_parts)
+            b = _parse_point_parts(b_parts)
             br = bearing_deg(a, b)
             print(_fmt_float(br, args.digits))
             return 0
 
         if args.cmd == "midpoint":
-            a = _parse_point(args.a)
-            b = _parse_point(args.b)
+            a_parts, b_parts = _split_two_points(args.points)
+            a = _parse_point_parts(a_parts)
+            b = _parse_point_parts(b_parts)
             lat, lon = midpoint(a, b)
             sep = "," if args.csv else " "
             print(f"{_fmt_float(lat, args.digits)}{sep}{_fmt_float(lon, args.digits)}")

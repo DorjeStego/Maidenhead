@@ -1,8 +1,14 @@
 import random
 import sys
 from io import StringIO
+from pathlib import Path
 
 import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 try:
     import orjson  # type: ignore
@@ -43,6 +49,20 @@ def test_cli_from_latlon_single_arg(capsys):
     captured = capsys.readouterr()
     assert code == 0
     assert captured.out.strip() == "IO83ri"
+
+
+def test_cli_from_latlon_space_separated(capsys):
+    code = main(["from-latlon", "53.073219", "-3.934023"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
+def test_cli_from_latlon_comma_space(capsys):
+    code = main(["from-latlon", "53.073219,", "-3.934023"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
 
 
 def test_cli_parts_output(capsys, valid_locators):
@@ -156,7 +176,17 @@ def test_cli_area_diagonal(capsys, valid_locators):
     captured = capsys.readouterr()
     assert code == 0
     assert captured.out.strip()
-    code = main(["diagonal", loc])
+
+
+def test_cli_distance_comma_space(capsys):
+    code = main(["distance", "53.073219,", "-3.934023", "51.5074,-0.1278"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
+def test_cli_distance_space_separated(capsys):
+    code = main(["distance", "53.073219", "-3.934023", "51.5074", "-0.1278"])
     captured = capsys.readouterr()
     assert code == 0
     assert captured.out.strip()
