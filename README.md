@@ -76,7 +76,25 @@ Print cell size (width height) for a locator.
 
 * mh size IO83rj --unit km --lon-at 45
 
+* mh size IO83rj --unit km --at-lat 10 --method spherical
+
 * mh size IO83rj --unit miles --csv
+
+#### area
+
+Print cell area (km^2).
+
+* mh area IO83rj
+
+* mh area IO83rj --method geodesic
+
+#### diagonal
+
+Print cell diagonal length (km).
+
+* mh diagonal IO83rj
+
+* mh diagonal IO83rj --method geodesic
 
 #### step
 
