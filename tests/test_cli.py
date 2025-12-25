@@ -214,6 +214,14 @@ def test_cli_cover_line(capsys):
     assert captured.out.strip()
 
 
+def test_cli_great_circle(capsys):
+    code = main(["great-circle", "0.0,0.0", "1.0,1.0", "--points-count", "3"])
+    captured = capsys.readouterr()
+    assert code == 0
+    lines = captured.out.strip().splitlines()
+    assert len(lines) == 3
+
+
 def test_cli_geojson_feature(capsys, valid_locators):
     if orjson is None:
         pytest.skip("orjson not installed")

@@ -184,6 +184,42 @@ def midpoint(a: PointLike, b: PointLike) -> tuple[float, float]:
     return (lat3, lon3)
 
 
+def great_circle_path(a: PointLike, b: PointLike, n: int = 100) -> list[tuple[float, float]]:
+    """
+    Return points along the great-circle path from a to b.
+    """
+    if n < 2:
+        raise ValueError("n must be >= 2")
+    lat1, lon1 = _resolve_point(a)
+    lat2, lon2 = _resolve_point(b)
+
+    φ1 = _deg2rad(lat1)
+    λ1 = _deg2rad(lon1)
+    φ2 = _deg2rad(lat2)
+    λ2 = _deg2rad(lon2)
+
+    d = 2.0 * math.asin(
+        math.sqrt(
+            math.sin((φ2 - φ1) / 2.0) ** 2
+            + math.cos(φ1) * math.cos(φ2) * math.sin((λ2 - λ1) / 2.0) ** 2
+        )
+    )
+    if d == 0.0:
+        return [(lat1, lon1)] * n
+
+    points: list[tuple[float, float]] = []
+    for i in range(n):
+        f = i / (n - 1)
+        a_coeff = math.sin((1.0 - f) * d) / math.sin(d)
+        b_coeff = math.sin(f * d) / math.sin(d)
+        x = a_coeff * math.cos(φ1) * math.cos(λ1) + b_coeff * math.cos(φ2) * math.cos(λ2)
+        y = a_coeff * math.cos(φ1) * math.sin(λ1) + b_coeff * math.cos(φ2) * math.sin(λ2)
+        z = a_coeff * math.sin(φ1) + b_coeff * math.sin(φ2)
+        lat = _rad2deg(math.atan2(z, math.sqrt(x * x + y * y)))
+        lon = _normalize_lon(_rad2deg(math.atan2(y, x)))
+        points.append((lat, lon))
+    return points
+
 def geodesic_midpoint(a: PointLike, b: PointLike) -> tuple[float, float]:
     """
     Ellipsoidal midpoint using GeographicLib (WGS84).
