@@ -21,6 +21,15 @@ def test_from_latlon_many_pandas_return_type():
     assert out.tolist() == expected
 
 
+def test_from_latlon_many_pandas_auto_return_type():
+    lats = pd.Series([51.5, 40.7], index=["a", "b"], name="lat")
+    lons = pd.Series([-0.1, -74.0], index=["a", "b"], name="lon")
+    out = from_latlon_many(lats, lons, precision=6, return_type="auto")
+    assert isinstance(out, pd.Series)
+    assert out.index.tolist() == ["a", "b"]
+    assert out.name == "lat"
+
+
 def test_from_latlon_many_pandas_mismatched_lengths():
     lats = pd.Series([51.5, 40.7], index=["a", "b"], name="lat")
     lons = pd.Series([-0.1], index=["a"], name="lon")

@@ -381,6 +381,32 @@ def test_cli_cover_line_batch_csv_stdin(monkeypatch, capsys):
     assert "," in line
 
 
+def test_cli_cover_circle_batch_json_stdin(monkeypatch, capsys):
+    if orjson is None:
+        pytest.skip("orjson not installed")
+    data = "JJ00 5 4\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["cover-circle", "0.0,0.0", "5", "--precision", "4", "--stdin", "--format", "json"])
+    captured = capsys.readouterr()
+    assert code == 0
+    out = orjson.loads(captured.out.strip())
+    assert isinstance(out, list)
+    assert out and isinstance(out[0], list)
+
+
+def test_cli_cover_line_batch_json_stdin(monkeypatch, capsys):
+    if orjson is None:
+        pytest.skip("orjson not installed")
+    data = "JJ00 JJ11 4\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["cover-line", "0.0,0.0", "1.0,1.0", "--precision", "4", "--stdin", "--format", "json"])
+    captured = capsys.readouterr()
+    assert code == 0
+    out = orjson.loads(captured.out.strip())
+    assert isinstance(out, list)
+    assert out and isinstance(out[0], list)
+
+
 def test_cli_validate_invalid(invalid_locators):
     for loc in invalid_locators:
         code = main(["validate", loc])

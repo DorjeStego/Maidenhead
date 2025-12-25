@@ -4,7 +4,7 @@ import pytest
 numpy = pytest.importorskip("numpy")
 
 from maidenhead.core import from_latlon
-from maidenhead.vector import from_latlon_many
+from maidenhead.vector import from_latlon_many, to_center_latlon_many
 
 
 def test_from_latlon_many_numpy_matches_core():
@@ -30,3 +30,10 @@ def test_from_latlon_many_numpy_with_resolution_fallback():
     lons = numpy.array([0.0, 10.0])
     out = from_latlon_many(lats, lons, precision=8, return_type="numpy", resolution_deg=1.0)
     assert all(len(loc) == 4 for loc in out.tolist())
+
+
+def test_to_center_latlon_many_numpy_return_type():
+    locs = numpy.array(["IO83ri", "JO22db"])
+    lat_out, lon_out = to_center_latlon_many(locs, return_type="numpy")
+    assert lat_out.shape == (2,)
+    assert lon_out.shape == (2,)
