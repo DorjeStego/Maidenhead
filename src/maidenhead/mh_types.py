@@ -51,7 +51,7 @@ def expected_pair_kind(pair_index: int) -> PairKind:
 def validate_precision(precision: int) -> int:
     """
     Validate a Maidenhead precision value (string length in characters).
-    Must be even and >= 2.
+    Must be even and between 2 and 10 characters (IARU recommendation).
     """
     if not isinstance(precision, int):
         raise PrecisionError(
@@ -60,6 +60,8 @@ def validate_precision(precision: int) -> int:
         )
     if precision < 2:
         raise PrecisionError("precision must be >= 2 characters", precision=precision)
+    if precision > 10:
+        raise PrecisionError("precision must be <= 10 characters", precision=precision)
     if precision % 2 != 0:
         raise PrecisionError(
             "precision must be an even number of characters (2, 4, 6, ...)",
