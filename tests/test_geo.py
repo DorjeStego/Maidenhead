@@ -1,6 +1,13 @@
 import pytest
 
-from maidenhead.geo import bearing_deg, distance_km, great_circle_path, midpoint
+from maidenhead.geo import (
+    azimuthal_sector,
+    bearing_bin,
+    bearing_deg,
+    distance_km,
+    great_circle_path,
+    midpoint,
+)
 
 
 def test_distance_symmetric():
@@ -24,3 +31,14 @@ def test_great_circle_path_endpoints():
     pts = great_circle_path((0.0, 0.0), (0.0, 10.0), n=3)
     assert pts[0] == pytest.approx((0.0, 0.0))
     assert pts[-1] == pytest.approx((0.0, 10.0))
+
+
+def test_bearing_bin():
+    b = bearing_bin((0.0, 0.0), (0.0, 10.0), bin_size=10.0)
+    assert b == pytest.approx(90.0)
+
+
+def test_azimuthal_sector():
+    start, end = azimuthal_sector((0.0, 0.0), (0.0, 10.0), width_deg=20.0)
+    assert start == pytest.approx(80.0)
+    assert end == pytest.approx(100.0)
