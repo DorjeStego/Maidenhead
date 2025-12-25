@@ -284,21 +284,27 @@ def to_bbox_split(
 
     Each bbox is (min_lat, min_lon, max_lat, max_lon). Returns None if no split.
     """
-    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
-    if max_lon <= C.LON_MAX_DEG and min_lon >= C.LON_MIN_DEG:
+    return split_bbox(to_bbox(locator))
+
+
+def split_bbox(
+    bbox: tuple[float, float, float, float],
+) -> tuple[tuple[float, float, float, float], tuple[float, float, float, float]] | None:
+    """
+    Split a bbox that crosses the antimeridian into (west, east) bboxes.
+
+    Returns None if the bbox does not cross. Longitudes are normalized to [-180, 180).
+    """
+    min_lat, min_lon, max_lat, max_lon = bbox
+    min_lon = _normalize_lon(min_lon)
+    max_lon = _normalize_lon(max_lon)
+
+    if min_lon <= max_lon:
         return None
 
-    if max_lon > C.LON_MAX_DEG:
-        west = (min_lat, min_lon, max_lat, C.LON_MAX_DEG)
-        east = (min_lat, C.LON_MIN_DEG, max_lat, max_lon - C.LON_SPAN_DEG)
-        return (west, east)
-
-    if min_lon < C.LON_MIN_DEG:
-        west = (min_lat, min_lon + C.LON_SPAN_DEG, max_lat, C.LON_MAX_DEG)
-        east = (min_lat, C.LON_MIN_DEG, max_lat, max_lon)
-        return (west, east)
-
-    return None
+    west = (min_lat, min_lon, max_lat, C.LON_MAX_DEG)
+    east = (min_lat, C.LON_MIN_DEG, max_lat, max_lon)
+    return (west, east)
 
 
 def contains_point(locator: LocatorLike, lat: float, lon: float) -> bool:
@@ -351,19 +357,36 @@ def intersects_polygon(locator: LocatorLike, polygon: Sequence[tuple[float, floa
     if len(polygon) < 3:
         raise ValueError("polygon must have at least 3 points")
 
+    def _wrap_lon_near(lon: float, ref: float) -> float:
+        lon = _normalize_lon(lon)
+        ref = _normalize_lon(ref)
+        diff = lon - ref
+        if diff > 180.0:
+            return lon - 360.0
+        if diff < -180.0:
+            return lon + 360.0
+        return lon
+
     min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
-    poly_lats = [p[0] for p in polygon]
-    poly_lons = [p[1] for p in polygon]
+    ref_lon = _normalize_lon((min_lon + max_lon) / 2.0)
+    min_lon = _wrap_lon_near(min_lon, ref_lon)
+    max_lon = _wrap_lon_near(max_lon, ref_lon)
+
+    poly_wrapped = [(lat, _wrap_lon_near(lon, ref_lon)) for (lat, lon) in polygon]
+    poly_lats = [p[0] for p in poly_wrapped]
+    poly_lons = [p[1] for p in poly_wrapped]
     poly_bbox = (min(poly_lats), min(poly_lons), max(poly_lats), max(poly_lons))
-    if not intersects_bbox(locator, poly_bbox):
+    if max_lat < poly_bbox[0] or poly_bbox[2] < min_lat:
+        return False
+    if max_lon < poly_bbox[1] or poly_bbox[3] < min_lon:
         return False
 
     def _point_in_poly(lat: float, lon: float) -> bool:
         inside = False
-        j = len(polygon) - 1
-        for i in range(len(polygon)):
-            lat_i, lon_i = polygon[i]
-            lat_j, lon_j = polygon[j]
+        j = len(poly_wrapped) - 1
+        for i in range(len(poly_wrapped)):
+            lat_i, lon_i = poly_wrapped[i]
+            lat_j, lon_j = poly_wrapped[j]
             if ((lon_i > lon) != (lon_j > lon)) and (
                 lat < (lat_j - lat_i) * (lon - lon_i) / (lon_j - lon_i + 1e-15) + lat_i
             ):
@@ -371,15 +394,21 @@ def intersects_polygon(locator: LocatorLike, polygon: Sequence[tuple[float, floa
             j = i
         return inside
 
+    def _wrap_point(lat: float, lon: float) -> tuple[float, float]:
+        return (lat, _wrap_lon_near(lon, ref_lon))
+
     corners_pts = [
-        (min_lat, min_lon),
-        (min_lat, max_lon),
-        (max_lat, max_lon),
-        (max_lat, min_lon),
+        _wrap_point(min_lat, min_lon),
+        _wrap_point(min_lat, max_lon),
+        _wrap_point(max_lat, max_lon),
+        _wrap_point(max_lat, min_lon),
     ]
     if any(_point_in_poly(lat, lon) for lat, lon in corners_pts):
         return True
-    if any(contains_point(locator, lat, lon) for lat, lon in polygon):
+    if any(
+        min_lat <= lat <= max_lat and min_lon <= _wrap_lon_near(lon, ref_lon) <= max_lon
+        for lat, lon in polygon
+    ):
         return True
     def _segments_intersect(a1, a2, b1, b2) -> bool:
         def _orient(p, q, r):
@@ -409,9 +438,9 @@ def intersects_polygon(locator: LocatorLike, polygon: Sequence[tuple[float, floa
         ((max_lat, max_lon), (max_lat, min_lon)),
         ((max_lat, min_lon), (min_lat, min_lon)),
     ]
-    for i in range(len(polygon)):
-        p1 = polygon[i]
-        p2 = polygon[(i + 1) % len(polygon)]
+    for i in range(len(poly_wrapped)):
+        p1 = poly_wrapped[i]
+        p2 = poly_wrapped[(i + 1) % len(poly_wrapped)]
         for e1, e2 in bbox_edges:
             if _segments_intersect(p1, p2, e1, e2):
                 return True
@@ -855,7 +884,7 @@ def from_latlon(
     """
     Convert lat/lon to a Maidenhead locator at given precision.
 
-    - precision is the locator length (2,4,6,8)
+    - precision is the locator length (2,4,6,8,10)
     - if lat/lon precision is too coarse, precision is reduced to fit
       (set resolution_deg to enable this fallback)
     - clamp=True prevents boundary issues at exactly 90/180 by nudging inward
@@ -874,9 +903,9 @@ def from_latlon(
         raise PrecisionError("precision must be an integer", precision=precision)
 
     require(
-        precision in (2, 4, 6, 8),
+        precision in (2, 4, 6, 8, 10),
         PrecisionError,
-        "precision must be one of 2, 4, 6, 8",
+        "precision must be one of 2, 4, 6, 8, 10",
         precision=precision,
     )
     precision = validate_precision(precision)
