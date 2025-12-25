@@ -50,11 +50,18 @@ def test_bbox_contains_center(valid_locators):
         min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
         lat, lon = to_center_latlon(loc)
         assert min_lat <= lat <= max_lat
-    assert min_lon <= lon <= max_lon
+        assert min_lon <= lon <= max_lon
 
 
 def test_bbox_split_none_for_standard_cells(valid_locators):
     loc = _pick_by_length(valid_locators, 4)
+    assert to_bbox_split(loc) is None
+
+
+def test_bbox_split_none_at_dateline_edge():
+    loc = from_latlon(0.0, 179.999, precision=6)
+    min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
+    assert max_lon == pytest.approx(180.0)
     assert to_bbox_split(loc) is None
 
 

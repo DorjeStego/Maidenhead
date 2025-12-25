@@ -80,6 +80,37 @@ def test_cli_normalize_batch_json_stdin(monkeypatch, capsys):
     assert orjson.loads(captured.out.strip()) == ["IO83ri", "FN31pr"]
 
 
+def test_cli_batch_conflicting_inputs(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", StringIO("IO83rj\n"))
+    code = main(["normalize", "--stdin", "--file", "locators.txt"])
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "error:" in captured.err
+
+
+def test_cli_normalize_requires_locator(capsys):
+    code = main(["normalize"])
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "error:" in captured.err
+
+
+def test_cli_from_latlon_batch_invalid_line(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", StringIO("53.36,-2.57,1\n"))
+    code = main(["from-latlon", "--stdin", "--format", "plain"])
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "error:" in captured.err
+
+
+def test_cli_geojson_batch_requires_featurecollection(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", StringIO("IO83rj\n"))
+    code = main(["geojson", "--stdin"])
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "error:" in captured.err
+
+
 def test_cli_center_batch_csv_file(tmp_path, capsys, valid_locators):
     locs = valid_locators[:2]
     file_path = tmp_path / "locs.txt"
