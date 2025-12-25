@@ -21,10 +21,6 @@ DistanceMethod = Literal["haversine", "geodesic"]
 PointLike = Union[LocatorLike, Tuple[float, float]]
 
 
-class GeoError(Exception):
-    """Base exception for geo helpers."""
-
-
 def _deg2rad(deg: float) -> float:
     return deg * (math.pi / 180.0)
 
