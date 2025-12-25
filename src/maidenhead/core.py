@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import math
-from typing import Iterable, Iterator, List, Sequence, Tuple, Union, overload
+from typing import Callable, Iterable, Iterator, List, Literal, Sequence, Tuple, Union, overload
 
 from . import constants as C
-from .errors import InvalidLocatorError, OutOfRangeError, PrecisionError, require
+from .errors import InvalidLocatorError, MaidenheadError, OutOfRangeError, PrecisionError, require
+from .geo import bearing_deg, distance_km
 from .mh_types import GridSquare, LocatorLike, validate_precision
 
 
@@ -14,7 +15,10 @@ def precision_of(locator: str | GridSquare) -> int:
     if isinstance(locator, GridSquare):
         return locator.precision
     if not isinstance(locator, str):
-        raise InvalidLocatorError(f"locator must be str or GridSquare, got {type(locator).__name__}")
+        raise InvalidLocatorError(
+            f"locator must be str or GridSquare, got {type(locator).__name__}",
+            locator=locator,
+        )
     return validate_precision(len(locator))
 
 
@@ -32,11 +36,6 @@ def _coerce_locator_text(locator: str | GridSquare) -> str:
     return locator.locator if isinstance(locator, GridSquare) else locator
 
 
-def _check_allow_extended(p: int, allow_extended: bool) -> None:
-    if not allow_extended:
-        require(p <= 6, PrecisionError, "extended Maidenhead locators are disabled (max precision=6)")
-
-
 def _pair_count(precision: int) -> int:
     return precision // 2
 
@@ -47,42 +46,66 @@ def _decode_letter(ch: str, *, pair_index: int) -> int:
     Pair 1 is base18 (A-R). Other letter pairs are base24 (a-x).
     """
     if len(ch) != 1:
-        raise InvalidLocatorError("internal error: expected single char")
+        raise InvalidLocatorError("internal error: expected single char", ch=ch, pair_index=pair_index)
 
     if pair_index == 1:
         # Accept either case, but only A-R.
         u = ch.upper()
-        require(u in C.FIELD_CHARS_UPPER, InvalidLocatorError, f"invalid field letter: {ch!r}")
+        require(
+            u in C.FIELD_CHARS_UPPER,
+            InvalidLocatorError,
+            f"invalid field letter: {ch!r}",
+            ch=ch,
+            pair_index=pair_index,
+        )
         return ord(u) - ord("A")
 
     # Other letter pairs: accept either case, but only a-x/A-X.
     l = ch.lower()
-    require(l in C.SUBSQUARE_CHARS_LOWER, InvalidLocatorError, f"invalid letter: {ch!r}")
+    require(
+        l in C.SUBSQUARE_CHARS_LOWER,
+        InvalidLocatorError,
+        f"invalid letter: {ch!r}",
+        ch=ch,
+        pair_index=pair_index,
+    )
     return ord(l) - ord("a")
 
 
 def _encode_letter(idx: int, *, pair_index: int) -> str:
     """Encode index to canonical letter for the given pair index."""
     if pair_index == 1:
-        require(0 <= idx < C.FIELD_BASE, InvalidLocatorError, "field index out of range")
+        require(
+            0 <= idx < C.FIELD_BASE,
+            InvalidLocatorError,
+            "field index out of range",
+            idx=idx,
+            pair_index=pair_index,
+        )
         return chr(ord("A") + idx)
-    require(0 <= idx < C.SUBSQUARE_BASE, InvalidLocatorError, "letter index out of range")
+    require(
+        0 <= idx < C.SUBSQUARE_BASE,
+        InvalidLocatorError,
+        "letter index out of range",
+        idx=idx,
+        pair_index=pair_index,
+    )
     return chr(ord("a") + idx)
 
 
 def _decode_digit(ch: str) -> int:
     if len(ch) != 1:
-        raise InvalidLocatorError("internal error: expected single char")
-    require(ch in C.DIGIT_CHARS, InvalidLocatorError, f"invalid digit: {ch!r}")
+        raise InvalidLocatorError("internal error: expected single char", ch=ch)
+    require(ch in C.DIGIT_CHARS, InvalidLocatorError, f"invalid digit: {ch!r}", ch=ch)
     return ord(ch) - ord("0")
 
 
 def _encode_digit(idx: int) -> str:
-    require(0 <= idx < 10, InvalidLocatorError, "digit index out of range")
+    require(0 <= idx < 10, InvalidLocatorError, "digit index out of range", idx=idx)
     return chr(ord("0") + idx)
 
 
-def normalize(locator: str, *, allow_extended: bool = True, strict: bool = False) -> str:
+def normalize(locator: str) -> str:
     """
     Normalize a Maidenhead locator to canonical casing.
 
@@ -94,18 +117,20 @@ def normalize(locator: str, *, allow_extended: bool = True, strict: bool = False
       - Pair 5 letters: lowercase
       - ... etc ...
 
-    strict currently controls whether we reject any characters outside the canonical
-    ranges (A-R for pair1, 0-9 for digit pairs, a-x for other letter pairs). Case
-    is normalized regardless.
+    Normalization also validates the canonical character ranges:
+    A-R for pair1, 0-9 for digit pairs, a-x for other letter pairs.
     """
-    require(isinstance(locator, str), InvalidLocatorError, f"locator must be str, got {type(locator).__name__}")
+    require(
+        isinstance(locator, str),
+        InvalidLocatorError,
+        f"locator must be str, got {type(locator).__name__}",
+        locator=locator,
+    )
 
     s = locator.strip()
-    require(s != "", InvalidLocatorError, "locator is empty")
+    require(s != "", InvalidLocatorError, "locator is empty", locator=locator)
 
     p = validate_precision(len(s))
-    _check_allow_extended(p, allow_extended)
-
     out_chars: list[str] = []
 
     for i in range(_pair_count(p)):
@@ -130,18 +155,18 @@ def normalize(locator: str, *, allow_extended: bool = True, strict: bool = False
     return "".join(out_chars)
 
 
-def is_valid(locator: str, *, allow_extended: bool = True) -> bool:
+def is_valid(locator: str) -> bool:
     """Return True if locator parses and validates."""
     try:
-        _ = normalize(locator, allow_extended=allow_extended, strict=True)
+        _ = normalize(locator)
         return True
-    except Exception:
+    except MaidenheadError:
         return False
 
 
-def parse(locator: str, *, allow_extended: bool = True) -> GridSquare:
+def parse(locator: str) -> GridSquare:
     """Parse and validate a locator string, returning a GridSquare."""
-    norm = normalize(locator, allow_extended=allow_extended, strict=True)
+    norm = normalize(locator)
     return GridSquare(norm)
 
 
@@ -175,7 +200,7 @@ def to_bbox(locator: LocatorLike) -> tuple[float, float, float, float]:
     Return bounding box (min_lat, min_lon, max_lat, max_lon) for a locator.
     """
     s = _coerce_locator_text(locator)
-    s = normalize(s, allow_extended=True, strict=True)
+    s = normalize(s)
 
     lon_indices, lat_indices = _decode_indices(s)
     lon_min = C.LON_MIN_DEG
@@ -203,28 +228,264 @@ def to_center_latlon(locator: LocatorLike) -> tuple[float, float]:
     return ((min_lat + max_lat) / 2.0, _normalize_lon((min_lon + max_lon) / 2.0))
 
 
+def to_geojson_polygon(locator: LocatorLike) -> dict:
+    """
+    Return a GeoJSON Polygon for the locator cell.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    ring = [
+        [min_lon, min_lat],
+        [max_lon, min_lat],
+        [max_lon, max_lat],
+        [min_lon, max_lat],
+        [min_lon, min_lat],
+    ]
+    return {"type": "Polygon", "coordinates": [ring]}
+
+
+def to_geojson_feature(locator: LocatorLike, properties: dict | None = None) -> dict:
+    """
+    Return a GeoJSON Feature for the locator cell.
+    """
+    return {
+        "type": "Feature",
+        "geometry": to_geojson_polygon(locator),
+        "properties": properties or {},
+    }
+
+
+def to_geojson_feature_collection(
+    locators: Sequence[LocatorLike],
+    properties_fn: Callable[[LocatorLike], dict] | None = None,
+) -> dict:
+    """
+    Return a GeoJSON FeatureCollection for locators.
+    """
+    features = []
+    for loc in locators:
+        props = properties_fn(loc) if properties_fn else None
+        features.append(to_geojson_feature(loc, properties=props))
+    return {"type": "FeatureCollection", "features": features}
+
+
+def to_geojson_bbox(locator: LocatorLike) -> list[float]:
+    """
+    Return GeoJSON bbox array [min_lon, min_lat, max_lon, max_lat].
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    return [min_lon, min_lat, max_lon, max_lat]
+
+
+def to_geojson_envelope(locator: LocatorLike) -> dict:
+    """
+    Return a GeoJSON Polygon using the bbox envelope.
+    """
+    bbox = to_geojson_bbox(locator)
+    min_lon, min_lat, max_lon, max_lat = bbox
+    ring = [
+        [min_lon, min_lat],
+        [max_lon, min_lat],
+        [max_lon, max_lat],
+        [min_lon, max_lat],
+        [min_lon, min_lat],
+    ]
+    return {"type": "Polygon", "coordinates": [ring], "bbox": bbox}
+
+def to_wkt(locator: LocatorLike) -> str:
+    """
+    Return a WKT Polygon string for the locator cell.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    ring = [
+        (min_lon, min_lat),
+        (max_lon, min_lat),
+        (max_lon, max_lat),
+        (min_lon, max_lat),
+        (min_lon, min_lat),
+    ]
+    coords = ", ".join(f"{lon} {lat}" for lon, lat in ring)
+    return f"POLYGON(({coords}))"
+
+
+def corners(
+    locator: LocatorLike,
+) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float], tuple[float, float]]:
+    """
+    Return (nw, ne, sw, se) corners as (lat, lon) pairs.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    return (
+        (max_lat, min_lon),
+        (max_lat, max_lon),
+        (min_lat, min_lon),
+        (min_lat, max_lon),
+    )
+
+
+@overload
+def azimuth(
+    locator_a: LocatorLike,
+    locator_b: LocatorLike,
+    *,
+    range_mode: Literal[False] = False,
+) -> tuple[float, float]: ...
+
+
+@overload
+def azimuth(
+    locator_a: LocatorLike,
+    locator_b: LocatorLike,
+    *,
+    range_mode: Literal[True],
+) -> tuple[float, float, float]: ...
+
+
+def azimuth(
+    locator_a: LocatorLike,
+    locator_b: LocatorLike,
+    *,
+    range_mode: bool = False,
+) -> tuple[float, float] | tuple[float, float, float]:
+    """
+    Return (bearing_deg, distance_km) from center of locator_a to locator_b.
+
+    If range_mode=True, return (bearing_deg, min_distance_km, max_distance_km)
+    using all corner-to-corner distances.
+    """
+    lat_a, lon_a = to_center_latlon(locator_a)
+    lat_b, lon_b = to_center_latlon(locator_b)
+    bearing = bearing_deg((lat_a, lon_a), (lat_b, lon_b))
+    center_distance = distance_km((lat_a, lon_a), (lat_b, lon_b))
+
+    if not range_mode:
+        return (bearing, center_distance)
+
+    corners_a = corners(locator_a)
+    corners_b = corners(locator_b)
+    distances = [distance_km(a, b) for a in corners_a for b in corners_b]
+    return (bearing, min(distances), max(distances))
+
+
+def initial_bearing(locator_a: LocatorLike, locator_b: LocatorLike) -> float:
+    """
+    Return initial bearing (deg) from center of locator_a to locator_b.
+    """
+    lat_a, lon_a = to_center_latlon(locator_a)
+    lat_b, lon_b = to_center_latlon(locator_b)
+    return bearing_deg((lat_a, lon_a), (lat_b, lon_b))
+
+
+def cell_size(
+    locator_or_precision: LocatorLike | int,
+    *,
+    unit: Literal["deg", "km", "miles"] = "deg",
+) -> tuple[float, float]:
+    """
+    Return (width, height) of a cell for the given locator or precision.
+
+    - unit="deg" returns degree spans (lon, lat).
+    - unit="km"/"miles" uses the locator center for distance conversion.
+    """
+    if isinstance(locator_or_precision, int):
+        precision = validate_precision(locator_or_precision)
+        if unit != "deg":
+            raise ValueError("unit must be 'deg' when using precision only")
+        step = C.step_size_for_pair(_pair_count(precision))
+        return (step.lon_step_deg, step.lat_step_deg)
+
+    precision = precision_of(locator_or_precision)
+    step = C.step_size_for_pair(_pair_count(precision))
+    if unit == "deg":
+        return (step.lon_step_deg, step.lat_step_deg)
+
+    lat, lon = to_center_latlon(locator_or_precision)
+    half_lon = step.lon_step_deg / 2.0
+    half_lat = step.lat_step_deg / 2.0
+    width_km = distance_km((lat, lon - half_lon), (lat, lon + half_lon))
+    height_km = distance_km((lat - half_lat, lon), (lat + half_lat, lon))
+
+    if unit == "km":
+        return (width_km, height_km)
+    if unit == "miles":
+        miles_per_km = 0.621371
+        return (width_km * miles_per_km, height_km * miles_per_km)
+    raise ValueError(f"Unknown unit: {unit!r}")
+
+
 def from_latlon(
     lat: float,
     lon: float,
     *,
     precision: int = 6,
     clamp: bool = True,
-    allow_extended: bool = True,
+    resolution_deg: float | tuple[float, float] | None = None,
 ) -> GridSquare:
     """
     Convert lat/lon to a Maidenhead locator at given precision.
 
-    - precision is the locator length (2,4,6,8,...)
+    - precision is the locator length (2,4,6,8)
+    - if lat/lon precision is too coarse, precision is reduced to fit
+      (set resolution_deg to enable this fallback)
     - clamp=True prevents boundary issues at exactly 90/180 by nudging inward
     """
-    precision = validate_precision(precision)
-    _check_allow_extended(precision, allow_extended)
+    if isinstance(precision, bool):
+        raise PrecisionError("precision must be an integer", precision=precision)
+    if isinstance(precision, float):
+        if not precision.is_integer():
+            raise PrecisionError("precision must be an integer", precision=precision)
+        precision = int(precision)
+    elif isinstance(precision, str):
+        if not precision.isdigit():
+            raise PrecisionError("precision must be an integer", precision=precision)
+        precision = int(precision)
+    elif not isinstance(precision, int):
+        raise PrecisionError("precision must be an integer", precision=precision)
 
-    require(isinstance(lat, (int, float)), OutOfRangeError, "lat must be a number")
-    require(isinstance(lon, (int, float)), OutOfRangeError, "lon must be a number")
+    require(
+        precision in (2, 4, 6, 8),
+        PrecisionError,
+        "precision must be one of 2, 4, 6, 8",
+        precision=precision,
+    )
+    precision = validate_precision(precision)
+    require(isinstance(lat, (int, float)), OutOfRangeError, "lat must be a number", lat=lat)
+    require(isinstance(lon, (int, float)), OutOfRangeError, "lon must be a number", lon=lon)
 
     latf = float(lat)
     lonf = float(lon)
+
+    if resolution_deg is not None:
+        if isinstance(resolution_deg, tuple):
+            require(
+                len(resolution_deg) == 2,
+                OutOfRangeError,
+                "resolution_deg must be a float or (lat_deg, lon_deg) tuple",
+                resolution_deg=resolution_deg,
+            )
+            lat_res, lon_res = resolution_deg
+        else:
+            lat_res = resolution_deg
+            lon_res = resolution_deg
+        require(
+            isinstance(lat_res, (int, float)) and isinstance(lon_res, (int, float)),
+            OutOfRangeError,
+            "resolution_deg must be numeric",
+            resolution_deg=resolution_deg,
+        )
+        lat_res = float(lat_res)
+        lon_res = float(lon_res)
+        require(
+            lat_res > 0 and lon_res > 0,
+            OutOfRangeError,
+            "resolution_deg must be > 0",
+            resolution_deg=resolution_deg,
+        )
+
+        for candidate in [p for p in (8, 6, 4, 2) if p <= precision]:
+            step = C.step_size_for_pair(_pair_count(candidate))
+            if lat_res <= step.lat_step_deg and lon_res <= step.lon_step_deg:
+                precision = candidate
+                break
 
     if clamp:
         # Normalize lon into [-180,180), clamp lat into [-90,90],
@@ -241,7 +502,12 @@ def from_latlon(
         if latf <= C.LAT_MIN_DEG:
             latf = C.LAT_MIN_DEG + C.CLAMP_EPS_DEG
     else:
-        require(C.LAT_MIN_DEG <= latf <= C.LAT_MAX_DEG, OutOfRangeError, "lat out of range [-90, 90]")
+        require(
+            C.LAT_MIN_DEG <= latf <= C.LAT_MAX_DEG,
+            OutOfRangeError,
+            "lat out of range [-90, 90]",
+            lat=latf,
+        )
         # Accept lon in a wider range, but normalize to compute.
         lonf = _normalize_lon(lonf)
 
@@ -287,15 +553,21 @@ def parent(locator: LocatorLike, *, precision: int | None = None) -> GridSquare:
     If precision is None, drops one pair (e.g. 6->4, 4->2).
     """
     s = _coerce_locator_text(locator)
-    s = normalize(s, allow_extended=True, strict=True)
+    s = normalize(s)
     p = len(s)
 
     if precision is None:
-        require(p > 2, PrecisionError, "cannot parent a 2-character locator")
+        require(p > 2, PrecisionError, "cannot parent a 2-character locator", precision=p)
         new_p = p - 2
     else:
         new_p = validate_precision(int(precision))
-        require(new_p < p, PrecisionError, "parent precision must be less than locator precision")
+        require(
+            new_p < p,
+            PrecisionError,
+            "parent precision must be less than locator precision",
+            precision=new_p,
+            locator_precision=p,
+        )
 
     return GridSquare(s[:new_p])
 
@@ -307,11 +579,17 @@ def children(locator: LocatorLike, *, precision: int) -> Iterable[GridSquare]:
     Note: expanding multiple levels can be huge; this is intentionally an iterator.
     """
     s = _coerce_locator_text(locator)
-    s = normalize(s, allow_extended=True, strict=True)
+    s = normalize(s)
     p0 = len(s)
     p1 = validate_precision(int(precision))
 
-    require(p1 > p0, PrecisionError, "child precision must be greater than locator precision")
+    require(
+        p1 > p0,
+        PrecisionError,
+        "child precision must be greater than locator precision",
+        precision=p1,
+        locator_precision=p0,
+    )
 
     start_pairs = _pair_count(p0)
     end_pairs = _pair_count(p1)
@@ -347,10 +625,10 @@ def neighbors(locator: LocatorLike, *, ring: int = 1, diagonals: bool = True) ->
     Implementation is robust (works across carries) by stepping in degrees from
     the cell center and re-encoding at the same precision.
     """
-    require(isinstance(ring, int) and ring >= 1, ValueError, "ring must be an integer >= 1")
+    require(isinstance(ring, int) and ring >= 1, ValueError, "ring must be an integer >= 1", ring=ring)
 
     s = _coerce_locator_text(locator)
-    s = normalize(s, allow_extended=True, strict=True)
+    s = normalize(s)
     p = len(s)
 
     min_lat, min_lon, max_lat, max_lon = to_bbox(s)
@@ -371,7 +649,7 @@ def neighbors(locator: LocatorLike, *, ring: int = 1, diagonals: bool = True) ->
 
             # Clamp latitude; longitudes wrap naturally.
             lat2 = _clamp_lat(lat2)
-            out.append(from_latlon(lat2, lon2, precision=p, clamp=True, allow_extended=True))
+            out.append(from_latlon(lat2, lon2, precision=p, clamp=True))
 
     # Deduplicate in case clamping collapses distinct neighbors near poles.
     # Preserve order.
@@ -382,3 +660,83 @@ def neighbors(locator: LocatorLike, *, ring: int = 1, diagonals: bool = True) ->
             seen.add(g.locator)
             uniq.append(g)
     return uniq
+
+
+def adjacent(locator: LocatorLike, *, diagonals: bool = False) -> dict[str, GridSquare]:
+    """
+    Return adjacent cells at the same precision keyed by direction.
+
+    By default returns cardinal neighbors (N, S, E, W). If diagonals=True,
+    includes NE, NW, SE, SW.
+    """
+    s = _coerce_locator_text(locator)
+    s = normalize(s)
+    p = len(s)
+
+    min_lat, min_lon, max_lat, max_lon = to_bbox(s)
+    dlat = (max_lat - min_lat)
+    dlon = (max_lon - min_lon)
+    clat, clon = to_center_latlon(s)
+
+    directions: list[tuple[str, int, int]] = [
+        ("N", 1, 0),
+        ("S", -1, 0),
+        ("E", 0, 1),
+        ("W", 0, -1),
+    ]
+    if diagonals:
+        directions.extend(
+            [
+                ("NE", 1, 1),
+                ("NW", 1, -1),
+                ("SE", -1, 1),
+                ("SW", -1, -1),
+            ]
+        )
+
+    out: dict[str, GridSquare] = {}
+    for key, dy, dx in directions:
+        lat2 = clat + dy * dlat
+        lon2 = _normalize_lon(clon + dx * dlon)
+        lat2 = _clamp_lat(lat2)
+        out[key] = from_latlon(lat2, lon2, precision=p, clamp=True)
+
+    return out
+
+
+def step(locator: LocatorLike, *, dlat_cells: int = 0, dlon_cells: int = 0) -> GridSquare:
+    """
+    Move by a number of cells in latitude/longitude directions.
+
+    Positive dlat_cells moves north, positive dlon_cells moves east.
+    """
+    require(isinstance(dlat_cells, int), ValueError, "dlat_cells must be int", dlat_cells=dlat_cells)
+    require(isinstance(dlon_cells, int), ValueError, "dlon_cells must be int", dlon_cells=dlon_cells)
+
+    s = _coerce_locator_text(locator)
+    s = normalize(s)
+    p = len(s)
+
+    min_lat, min_lon, max_lat, max_lon = to_bbox(s)
+    dlat = (max_lat - min_lat)
+    dlon = (max_lon - min_lon)
+    clat, clon = to_center_latlon(s)
+
+    lat2 = clat + dlat_cells * dlat
+    lon2 = _normalize_lon(clon + dlon_cells * dlon)
+    lat2 = _clamp_lat(lat2)
+    return from_latlon(lat2, lon2, precision=p, clamp=True)
+
+
+def contains(outer: LocatorLike, inner: LocatorLike) -> bool:
+    """
+    Return True if inner's cell is fully within outer's cell.
+    """
+    min_lat_o, min_lon_o, max_lat_o, max_lon_o = to_bbox(outer)
+    min_lat_i, min_lon_i, max_lat_i, max_lon_i = to_bbox(inner)
+    return (
+        min_lat_o <= min_lat_i
+        and max_lat_o >= max_lat_i
+        and min_lon_o <= min_lon_i
+        and max_lon_o >= max_lon_i
+    )

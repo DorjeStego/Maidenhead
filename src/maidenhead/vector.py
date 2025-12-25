@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Iterator, List, Optional, Sequence, Tuple, Union, overload
 
+from . import constants as C
 from .mh_types import GridSquare, LocatorLike, validate_precision
 from .core import from_latlon, to_bbox, to_center_latlon
 
@@ -41,6 +42,63 @@ def _make_numpy_object_array(length: int) -> Any:
 def _make_numpy_float_array(length: int) -> Any:
     import numpy as np  # type: ignore
     return np.empty(length, dtype=float)
+
+def _from_latlon_numpy(lats: Any, lons: Any, *, precision: int) -> Any:
+    import numpy as np  # type: ignore
+    lats_arr = np.asarray(lats, dtype=float)
+    lons_arr = np.asarray(lons, dtype=float)
+    if lats_arr.shape != lons_arr.shape:
+        raise ValueError("lats and lons must have the same shape")
+
+    # Clamp/normalize like core.from_latlon with clamp=True.
+    lons_arr = (lons_arr + 180.0) % 360.0 - 180.0
+    lats_arr = np.clip(lats_arr, C.LAT_MIN_DEG, C.LAT_MAX_DEG)
+    eps = C.CLAMP_EPS_DEG
+    lons_arr = np.where(lons_arr >= C.LON_MAX_DEG, C.LON_MAX_DEG - eps, lons_arr)
+    lons_arr = np.where(lons_arr <= C.LON_MIN_DEG, C.LON_MIN_DEG + eps, lons_arr)
+    lats_arr = np.where(lats_arr >= C.LAT_MAX_DEG, C.LAT_MAX_DEG - eps, lats_arr)
+    lats_arr = np.where(lats_arr <= C.LAT_MIN_DEG, C.LAT_MIN_DEG + eps, lats_arr)
+
+    x = lons_arr - C.LON_MIN_DEG
+    y = lats_arr - C.LAT_MIN_DEG
+
+    lon_cell = C.LON_SPAN_DEG
+    lat_cell = C.LAT_SPAN_DEG
+    out = None
+    pair_count = precision // 2
+
+    for i in range(pair_count):
+        pair_index = i + 1
+        lon_base, lat_base = C.lon_lat_bases_for_pair(pair_index)
+        lon_cell /= lon_base
+        lat_cell /= lat_base
+
+        lon_i = np.floor(x / lon_cell).astype(int)
+        lat_i = np.floor(y / lat_cell).astype(int)
+        lon_i = np.clip(lon_i, 0, lon_base - 1)
+        lat_i = np.clip(lat_i, 0, lat_base - 1)
+
+        x = x - lon_i * lon_cell
+        y = y - lat_i * lat_cell
+
+        if C.pair_kind(pair_index) == "letters":
+            if pair_index == 1:
+                alphabet = np.array(list(C.FIELD_CHARS_UPPER))
+            else:
+                alphabet = np.array(list(C.SUBSQUARE_CHARS_LOWER))
+            a = alphabet[lon_i]
+            b = alphabet[lat_i]
+        else:
+            digits = np.array(list(C.DIGIT_CHARS))
+            a = digits[lon_i]
+            b = digits[lat_i]
+
+        if out is None:
+            out = np.char.add(a, b)
+        else:
+            out = np.char.add(out, np.char.add(a, b))
+
+    return out
 
 
 # ----------------------------
@@ -89,6 +147,7 @@ def from_latlon_many(
     *,
     precision: int = 6,
     return_type: str = "auto",
+    resolution_deg: float | tuple[float, float] | None = None,
 ) -> Any:
     """
     Vectorized Maidenhead conversion: lat/lon -> locator strings.
@@ -106,21 +165,34 @@ def from_latlon_many(
 
     # Pandas Series preservation (if both are Series, we preserve index)
     if return_type == "auto" and _is_pandas_series(lats) and _is_pandas_series(lons):
-        out = [ _coerce_locator_out(from_latlon(lat, lon, precision=precision))
-                for (lat, lon) in zip(lats.tolist(), lons.tolist()) ]
+        out = [
+            _coerce_locator_out(
+                from_latlon(lat, lon, precision=precision, resolution_deg=resolution_deg)
+            )
+            for (lat, lon) in zip(lats.tolist(), lons.tolist())
+        ]
         import pandas as pd  # type: ignore
         return pd.Series(out, index=lats.index, name=getattr(lats, "name", None))
 
     # Numpy arrays preservation
     if return_type == "auto" and _is_numpy_array(lats) and _is_numpy_array(lons):
-        # We iterate in Python anyway (core is scalar), but preserve ndarray output.
-        n = int(len(lats))
-        if len(lons) != n:
-            raise ValueError("lats and lons must have the same length")
-        out = _make_numpy_object_array(n)
-        for i in range(n):
-            out[i] = _coerce_locator_out(from_latlon(float(lats[i]), float(lons[i]), precision=precision))
-        return out
+        if resolution_deg is not None:
+            # Fallback precision uses core, so defer to scalar path.
+            n = int(len(lats))
+            if len(lons) != n:
+                raise ValueError("lats and lons must have the same length")
+            out = _make_numpy_object_array(n)
+            for i in range(n):
+                out[i] = _coerce_locator_out(
+                    from_latlon(
+                        float(lats[i]),
+                        float(lons[i]),
+                        precision=precision,
+                        resolution_deg=resolution_deg,
+                    )
+                )
+            return out
+        return _from_latlon_numpy(lats, lons, precision=precision)
 
     # Explicit return type requests
     if return_type == "numpy":
@@ -132,12 +204,21 @@ def from_latlon_many(
                 raise ImportError("return_type='numpy' requires numpy") from e
         lats_arr = _as_numpy_array(lats)
         lons_arr = _as_numpy_array(lons)
-        if len(lats_arr) != len(lons_arr):
-            raise ValueError("lats and lons must have the same length")
-        out = _make_numpy_object_array(int(len(lats_arr)))
-        for i in range(int(len(lats_arr))):
-            out[i] = _coerce_locator_out(from_latlon(float(lats_arr[i]), float(lons_arr[i]), precision=precision))
-        return out
+        if resolution_deg is not None:
+            if len(lats_arr) != len(lons_arr):
+                raise ValueError("lats and lons must have the same length")
+            out = _make_numpy_object_array(int(len(lats_arr)))
+            for i in range(int(len(lats_arr))):
+                out[i] = _coerce_locator_out(
+                    from_latlon(
+                        float(lats_arr[i]),
+                        float(lons_arr[i]),
+                        precision=precision,
+                        resolution_deg=resolution_deg,
+                    )
+                )
+            return out
+        return _from_latlon_numpy(lats_arr, lons_arr, precision=precision)
 
     if return_type == "pandas":
         try:
@@ -158,8 +239,17 @@ def from_latlon_many(
             index = None
             name = None
 
-        out = [ _coerce_locator_out(from_latlon(float(lat_list[i]), float(lon_list[i]), precision=precision))
-                for i in range(len(lat_list)) ]
+        out = [
+            _coerce_locator_out(
+                from_latlon(
+                    float(lat_list[i]),
+                    float(lon_list[i]),
+                    precision=precision,
+                    resolution_deg=resolution_deg,
+                )
+            )
+            for i in range(len(lat_list))
+        ]
         return pd.Series(out, index=index, name=name)
 
     # Default list behavior
@@ -169,7 +259,14 @@ def from_latlon_many(
         raise ValueError("lats and lons must have the same length")
 
     return [
-        _coerce_locator_out(from_latlon(float(lat_list[i]), float(lon_list[i]), precision=precision))
+        _coerce_locator_out(
+            from_latlon(
+                float(lat_list[i]),
+                float(lon_list[i]),
+                precision=precision,
+                resolution_deg=resolution_deg,
+            )
+        )
         for i in range(len(lat_list))
     ]
 

@@ -3,9 +3,13 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Literal, Tuple, Union, overload
+from typing import TYPE_CHECKING, Literal, Tuple, Union, overload
 
-from .mh_types import GridSquare, LocatorLike
+from .errors import MissingDependencyError
+if TYPE_CHECKING:
+    from .mh_types import GridSquare, LocatorLike
+else:
+    LocatorLike = Union[str, object]
 
 # Mean Earth radius in km (IUGG recommended mean radius)
 EARTH_RADIUS_KM: float = 6371.0088
@@ -15,14 +19,6 @@ DistanceMethod = Literal["haversine", "geodesic"]
 
 # We allow either a locator-like or explicit lat/lon pair.
 PointLike = Union[LocatorLike, Tuple[float, float]]
-
-
-class GeoError(Exception):
-    """Base exception for geo helpers."""
-
-
-class MissingDependencyError(GeoError):
-    """Raised when an optional dependency is required but not installed."""
 
 
 def _deg2rad(deg: float) -> float:
@@ -45,6 +41,7 @@ def _resolve_point(p: PointLike) -> tuple[float, float]:
     """
     Resolve a PointLike (locator/GridSquare/(lat,lon)) to (lat, lon) in degrees.
     """
+    from .mh_types import GridSquare
     if isinstance(p, GridSquare):
         from .core import to_center_latlon
         return to_center_latlon(p)
