@@ -1,6 +1,6 @@
 import pytest
 
-from maidenhead.geo import bearing_deg, distance_km, midpoint
+from maidenhead.geo import bearing_deg, distance_km, great_circle_path, midpoint
 
 
 def test_distance_symmetric():
@@ -18,3 +18,9 @@ def test_midpoint_on_equator():
     lat, lon = midpoint((0.0, 0.0), (0.0, 10.0))
     assert lat == pytest.approx(0.0, abs=1e-6)
     assert lon == pytest.approx(5.0, abs=1e-6)
+
+
+def test_great_circle_path_endpoints():
+    pts = great_circle_path((0.0, 0.0), (0.0, 10.0), n=3)
+    assert pts[0] == pytest.approx((0.0, 0.0))
+    assert pts[-1] == pytest.approx((0.0, 10.0))

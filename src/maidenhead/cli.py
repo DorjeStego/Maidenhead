@@ -25,6 +25,7 @@ from .core import (
     to_utm_zone,
 )
 from .geo import bearing_deg, distance_km, midpoint
+from .geo import great_circle_path
 from .errors import MaidenheadError, MissingDependencyError
 
 
@@ -277,6 +278,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_mid = sub.add_parser("midpoint", help="Great-circle midpoint between A and B (lat lon).")
     p_mid.add_argument("points", nargs="+", help="Two points as locators or 'lat,lon'")
     _add_common_args(p_mid)
+
+    # great-circle
+    p_gc = sub.add_parser("great-circle", help="Great-circle path points from A to B.")
+    p_gc.add_argument("points", nargs="+", help="Two points as locators or 'lat,lon'")
+    p_gc.add_argument(
+        "-n",
+        "--points-count",
+        type=int,
+        default=100,
+        help="Number of points along the path (default: 100).",
+    )
+    _add_common_args(p_gc)
 
     return parser
 
@@ -623,6 +636,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             lat, lon = midpoint(a, b)
             sep = "," if args.csv else " "
             print(f"{_fmt_float(lat, args.digits)}{sep}{_fmt_float(lon, args.digits)}")
+            return 0
+
+        if args.cmd == "great-circle":
+            a_parts, b_parts = _split_two_points(args.points)
+            a = _parse_point_parts(a_parts)
+            b = _parse_point_parts(b_parts)
+            pts = great_circle_path(a, b, n=args.points_count)
+            if args.csv:
+                print("\n".join(f"{_fmt_float(lat, args.digits)},{_fmt_float(lon, args.digits)}" for lat, lon in pts))
+            else:
+                print("\n".join(f"{_fmt_float(lat, args.digits)} {_fmt_float(lon, args.digits)}" for lat, lon in pts))
             return 0
 
         parser.error("unknown command")

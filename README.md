@@ -184,6 +184,16 @@ Batch input expects: start end precision
 
 * mh cover-line --file lines.txt --format csv
 
+#### great-circle
+
+Print points along a great-circle path.
+
+* mh great-circle 0.0,0.0 1.0,1.0 --points-count 5
+
+* mh great-circle 53.073219, -3.934023 51.5074,-0.1278 --points-count 10 --csv
+
+Outputs one point per line as lat lon (or lat,lon with --csv).
+
 #### distance
 
 Distance (km) between two locators or points (lat,lon).
