@@ -5,6 +5,11 @@ import pytest
 from maidenhead import (
     adjacent,
     azimuth,
+    cover_circle,
+    cover_line,
+    contains_point,
+    intersects_bbox,
+    intersects_polygon,
     cell_size,
     cell_size_deg,
     cell_size_km,
@@ -29,6 +34,7 @@ from maidenhead import (
     to_geojson_bbox,
     to_geojson_envelope,
     to_wkt,
+    to_utm_zone,
 )
 from maidenhead import constants as C
 from maidenhead.errors import PrecisionError
@@ -115,6 +121,55 @@ def test_wkt_matches_bbox(valid_locators):
         f"{max_lon} {max_lat}, {min_lon} {max_lat}, {min_lon} {min_lat}))"
     )
     assert wkt == expected
+
+
+def test_contains_point_and_intersects_bbox(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    lat, lon = to_center_latlon(loc)
+    assert contains_point(loc, lat, lon)
+    assert not contains_point(loc, 89.9, 0.0)
+    bbox = to_bbox(loc)
+    assert intersects_bbox(loc, bbox)
+    assert not intersects_bbox(loc, (80.0, 0.0, 85.0, 10.0))
+
+
+def test_intersects_polygon(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    lat, lon = to_center_latlon(loc)
+    poly = [
+        (lat - 0.1, lon - 0.1),
+        (lat - 0.1, lon + 0.1),
+        (lat + 0.1, lon + 0.1),
+        (lat + 0.1, lon - 0.1),
+    ]
+    assert intersects_polygon(loc, poly)
+    far_poly = [(80.0, 0.0), (80.0, 1.0), (81.0, 1.0), (81.0, 0.0)]
+    assert not intersects_polygon(loc, far_poly)
+
+
+def test_cover_circle_includes_center():
+    center = (0.0, 0.0)
+    loc = from_latlon(*center, precision=6)
+    out = cover_circle(center, radius_km=5.0, precision=6)
+    assert loc.locator in [g.locator for g in out]
+
+
+def test_cover_line_includes_endpoints():
+    a = (0.0, 0.0)
+    b = (1.0, 1.0)
+    loc_a = from_latlon(*a, precision=4)
+    loc_b = from_latlon(*b, precision=4)
+    out = cover_line(a, b, precision=4)
+    locs = {g.locator for g in out}
+    assert loc_a.locator in locs
+    assert loc_b.locator in locs
+
+
+def test_to_utm_zone():
+    loc = from_latlon(0.0, 0.0, precision=4)
+    assert to_utm_zone(loc) == "31N"
+    loc_s = from_latlon(-10.0, 33.0, precision=4)
+    assert to_utm_zone(loc_s) == "36S"
 
 
 def test_corners_match_bbox(valid_locators):

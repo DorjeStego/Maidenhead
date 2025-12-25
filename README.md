@@ -148,6 +148,36 @@ Notes:
 
 - JSON output uses orjson (install with pip install orjson).
 
+#### utm
+
+Print the UTM zone for a locator.
+
+* mh utm IO83rj
+
+#### cover-circle
+
+Cover a circle with grid squares (space-separated output by default).
+
+* mh cover-circle 0.0,0.0 5 --precision 4
+
+* mh cover-circle IO83rj 10 --precision 6 --csv
+
+Batch input expects: center radius_km precision
+
+* mh cover-circle --stdin --format json
+
+#### cover-line
+
+Cover a line with grid squares.
+
+* mh cover-line 0.0,0.0 1.0,1.0 --precision 4
+
+* mh cover-line IO83rj FN31pr --precision 4 --method geodesic
+
+Batch input expects: start end precision
+
+* mh cover-line --file lines.txt --format csv
+
 #### distance
 
 Distance (km) between two locators or points (lat,lon).

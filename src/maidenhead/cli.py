@@ -10,6 +10,8 @@ from .core import (
     area_km2,
     cell_size,
     cell_size_km,
+    cover_circle,
+    cover_line,
     diagonal_km,
     from_latlon,
     format_locator,
@@ -20,6 +22,7 @@ from .core import (
     to_center_latlon,
     to_geojson_feature,
     to_geojson_feature_collection,
+    to_utm_zone,
 )
 from .geo import bearing_deg, distance_km, midpoint
 from .errors import MaidenheadError, MissingDependencyError
@@ -213,6 +216,44 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_common_args(p_diag)
 
+    # utm
+    p_utm = sub.add_parser("utm", help="Print UTM zone for locator.")
+    p_utm.add_argument("locator", help="Maidenhead locator")
+
+    # cover-circle
+    p_cc = sub.add_parser("cover-circle", help="Cover circle with grid squares.")
+    p_cc.add_argument("center", help="Center as locator or 'lat,lon'")
+    p_cc.add_argument("radius_km", type=float, help="Radius in kilometers")
+    p_cc.add_argument(
+        "-p",
+        "--precision",
+        type=int,
+        required=True,
+        help="Target locator precision (character length).",
+    )
+    _add_common_args(p_cc)
+    _add_batch_args(p_cc)
+
+    # cover-line
+    p_cl = sub.add_parser("cover-line", help="Cover line with grid squares.")
+    p_cl.add_argument("a", help="Start as locator or 'lat,lon'")
+    p_cl.add_argument("b", help="End as locator or 'lat,lon'")
+    p_cl.add_argument(
+        "-p",
+        "--precision",
+        type=int,
+        required=True,
+        help="Target locator precision (character length).",
+    )
+    p_cl.add_argument(
+        "--method",
+        choices=["geodesic", "greatcircle"],
+        default="greatcircle",
+        help="Line method (default: greatcircle).",
+    )
+    _add_common_args(p_cl)
+    _add_batch_args(p_cl)
+
     # distance
     p_dist = sub.add_parser("distance", help="Distance (km) between two locators or points.")
     p_dist.add_argument("a", help="Locator or 'lat,lon' (e.g. IO91wm or 51.5,-0.12)")
@@ -254,6 +295,10 @@ def _parse_point(s: str):
 
     # Treat as locator; normalize/validate early for clearer CLI errors.
     return normalize(txt)
+
+
+def _format_locator_list(locators: Sequence[str], *, sep: str) -> str:
+    return sep.join(locators)
 
 
 def _parse_latlon(args: Sequence[str]) -> tuple[float, float]:
@@ -422,6 +467,56 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.cmd == "diagonal":
             dist = diagonal_km(args.locator, method=args.method)
             print(_fmt_float(dist, args.digits))
+            return 0
+
+        if args.cmd == "utm":
+            print(to_utm_zone(args.locator))
+            return 0
+
+        if args.cmd == "cover-circle":
+            batch = _read_batch_lines(args.file, args.stdin)
+            if batch:
+                out = []
+                for line in batch:
+                    parts = [p.strip() for p in line.split(",")] if "," in line else line.split()
+                    if len(parts) != 3:
+                        raise ValueError("Expected lines: center radius_km precision")
+                    center_raw, radius_km, precision = parts[0], float(parts[1]), int(parts[2])
+                    center = _parse_point(center_raw)
+                    out.append([g.locator for g in cover_circle(center, radius_km, precision)])
+                if args.format == "json":
+                    print(_json_dumps(out))
+                else:
+                    sep = "," if args.format == "csv" else " "
+                    print("\n".join(sep.join(row) for row in out))
+                return 0
+            center = _parse_point(args.center)
+            out = cover_circle(center, args.radius_km, args.precision)
+            sep = "," if args.csv else " "
+            print(_format_locator_list([g.locator for g in out], sep=sep))
+            return 0
+
+        if args.cmd == "cover-line":
+            batch = _read_batch_lines(args.file, args.stdin)
+            if batch:
+                out = []
+                for line in batch:
+                    parts = [p.strip() for p in line.split(",")] if "," in line else line.split()
+                    if len(parts) != 3:
+                        raise ValueError("Expected lines: start end precision")
+                    start_raw, end_raw, precision = parts[0], parts[1], int(parts[2])
+                    start = _parse_point(start_raw)
+                    end = _parse_point(end_raw)
+                    out.append([g.locator for g in cover_line(start, end, precision, method=args.method)])
+                if args.format == "json":
+                    print(_json_dumps(out))
+                else:
+                    sep = "," if args.format == "csv" else " "
+                    print("\n".join(sep.join(row) for row in out))
+                return 0
+            out = cover_line(_parse_point(args.a), _parse_point(args.b), args.precision, method=args.method)
+            sep = "," if args.csv else " "
+            print(_format_locator_list([g.locator for g in out], sep=sep))
             return 0
 
         if args.cmd == "from-latlon":

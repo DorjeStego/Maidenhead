@@ -32,6 +32,9 @@ from .bulk import cell_size_many, from_latlon_many, normalize_many, to_bbox_many
 from .core import (
     adjacent,
     azimuth,
+    cover_circle,
+    cover_line,
+    contains_point,
     cell_size,
     cell_size_deg,
     cell_size_km,
@@ -58,6 +61,9 @@ from .core import (
     to_geojson_feature_collection,
     to_geojson_bbox,
     to_geojson_envelope,
+    intersects_bbox,
+    intersects_polygon,
+    to_utm_zone,
     to_wkt,
 )
 
@@ -89,6 +95,12 @@ __all__ = [
     "cell_size_km",
     "area_km2",
     "diagonal_km",
+    "cover_circle",
+    "cover_line",
+    "contains_point",
+    "intersects_bbox",
+    "intersects_polygon",
+    "to_utm_zone",
     "cell_size_many",
     "to_center_latlon",
     "to_geojson_polygon",

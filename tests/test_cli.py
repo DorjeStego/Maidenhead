@@ -162,6 +162,28 @@ def test_cli_area_diagonal(capsys, valid_locators):
     assert captured.out.strip()
 
 
+def test_cli_utm(capsys, valid_locators):
+    loc = valid_locators[0]
+    code = main(["utm", loc])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
+def test_cli_cover_circle(capsys):
+    code = main(["cover-circle", "0.0,0.0", "5", "--precision", "4"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
+def test_cli_cover_line(capsys):
+    code = main(["cover-line", "0.0,0.0", "1.0,1.0", "--precision", "4"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
 def test_cli_geojson_feature(capsys, valid_locators):
     if orjson is None:
         pytest.skip("orjson not installed")
