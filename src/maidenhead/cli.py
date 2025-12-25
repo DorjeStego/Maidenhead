@@ -24,8 +24,7 @@ from .core import (
     to_geojson_feature_collection,
     to_utm_zone,
 )
-from .geo import bearing_deg, distance_km, midpoint
-from .geo import great_circle_path
+from .geo import azimuthal_sector, bearing_bin, bearing_deg, distance_km, great_circle_path, midpoint
 from .errors import MaidenheadError, MissingDependencyError
 
 
@@ -290,6 +289,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="Number of points along the path (default: 100).",
     )
     _add_common_args(p_gc)
+
+    # bearing-bin
+    p_bin = sub.add_parser("bearing-bin", help="Bearing bin start angle from A to B.")
+    p_bin.add_argument("points", nargs="+", help="Two points as locators or 'lat,lon'")
+    p_bin.add_argument(
+        "--bin-size",
+        type=float,
+        default=5.0,
+        help="Bearing bin size in degrees (default: 5).",
+    )
+    _add_common_args(p_bin)
+
+    # azimuthal-sector
+    p_sector = sub.add_parser("azimuthal-sector", help="Bearing sector from A to B.")
+    p_sector.add_argument("points", nargs="+", help="Two points as locators or 'lat,lon'")
+    p_sector.add_argument(
+        "--width",
+        type=float,
+        required=True,
+        help="Sector width in degrees.",
+    )
+    _add_common_args(p_sector)
 
     return parser
 
@@ -647,6 +668,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print("\n".join(f"{_fmt_float(lat, args.digits)},{_fmt_float(lon, args.digits)}" for lat, lon in pts))
             else:
                 print("\n".join(f"{_fmt_float(lat, args.digits)} {_fmt_float(lon, args.digits)}" for lat, lon in pts))
+            return 0
+
+        if args.cmd == "bearing-bin":
+            a_parts, b_parts = _split_two_points(args.points)
+            a = _parse_point_parts(a_parts)
+            b = _parse_point_parts(b_parts)
+            binned = bearing_bin(a, b, bin_size=args.bin_size)
+            print(_fmt_float(binned, args.digits))
+            return 0
+
+        if args.cmd == "azimuthal-sector":
+            a_parts, b_parts = _split_two_points(args.points)
+            a = _parse_point_parts(a_parts)
+            b = _parse_point_parts(b_parts)
+            start, end = azimuthal_sector(a, b, width_deg=args.width)
+            sep = "," if args.csv else " "
+            print(f"{_fmt_float(start, args.digits)}{sep}{_fmt_float(end, args.digits)}")
             return 0
 
         parser.error("unknown command")

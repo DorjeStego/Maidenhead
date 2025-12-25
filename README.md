@@ -194,6 +194,20 @@ Print points along a great-circle path.
 
 Outputs one point per line as lat lon (or lat,lon with --csv).
 
+#### bearing-bin
+
+Return the bearing bin start angle from A to B.
+
+* mh bearing-bin 0.0,0.0 0.0,10.0 --bin-size 10
+
+#### azimuthal-sector
+
+Return a bearing sector (start end) from A to B.
+
+* mh azimuthal-sector 0.0,0.0 0.0,10.0 --width 20
+
+* mh azimuthal-sector 0.0,0.0 0.0,10.0 --width 20 --csv
+
 #### distance
 
 Distance (km) between two locators or points (lat,lon).

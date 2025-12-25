@@ -220,6 +220,29 @@ def great_circle_path(a: PointLike, b: PointLike, n: int = 100) -> list[tuple[fl
         points.append((lat, lon))
     return points
 
+
+def bearing_bin(a: PointLike, b: PointLike, bin_size: float = 5.0) -> float:
+    """
+    Return the bearing bin start angle (degrees).
+    """
+    if bin_size <= 0:
+        raise ValueError("bin_size must be > 0")
+    bearing = bearing_deg(a, b)
+    return math.floor(bearing / bin_size) * bin_size
+
+
+def azimuthal_sector(a: PointLike, b: PointLike, width_deg: float) -> tuple[float, float]:
+    """
+    Return (start_deg, end_deg) sector around the bearing.
+    """
+    if width_deg <= 0:
+        raise ValueError("width_deg must be > 0")
+    center = bearing_deg(a, b)
+    half = width_deg / 2.0
+    start = (center - half) % 360.0
+    end = (center + half) % 360.0
+    return (start, end)
+
 def geodesic_midpoint(a: PointLike, b: PointLike) -> tuple[float, float]:
     """
     Ellipsoidal midpoint using GeographicLib (WGS84).

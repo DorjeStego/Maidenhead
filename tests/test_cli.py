@@ -222,6 +222,20 @@ def test_cli_great_circle(capsys):
     assert len(lines) == 3
 
 
+def test_cli_bearing_bin(capsys):
+    code = main(["bearing-bin", "0.0,0.0", "0.0,10.0", "--bin-size", "10"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
+def test_cli_azimuthal_sector(capsys):
+    code = main(["azimuthal-sector", "0.0,0.0", "0.0,10.0", "--width", "20"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
 def test_cli_geojson_feature(capsys, valid_locators):
     if orjson is None:
         pytest.skip("orjson not installed")

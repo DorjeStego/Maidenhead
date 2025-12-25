@@ -68,7 +68,7 @@ from .core import (
 )
 
 # ---- Geodesy helpers ----
-from .geo import bearing_deg, distance_km, great_circle_path, midpoint
+from .geo import azimuthal_sector, bearing_bin, bearing_deg, distance_km, great_circle_path, midpoint
 
 __all__ = [
     # meta
@@ -126,4 +126,6 @@ __all__ = [
     "bearing_deg",
     "midpoint",
     "great_circle_path",
+    "bearing_bin",
+    "azimuthal_sector",
 ]
