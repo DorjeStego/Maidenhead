@@ -328,6 +328,14 @@ def to_center_latlon_many(
             lat_out[i] = a
             lon_out[i] = b
         return (lat_out, lon_out)
+    if return_type == "tuple":
+        lat = []
+        lon = []
+        for loc in locators:
+            a, b = to_center_latlon(loc)
+            lat.append(a)
+            lon.append(b)
+        return (lat, lon)
 
     if return_type == "pandas":
         try:
@@ -417,6 +425,18 @@ def to_bbox_many(
             columns=["min_lat", "min_lon", "max_lat", "max_lon"],
             index=idx,
         )
+
+    if return_type == "tuple":
+        min_lat = []
+        min_lon = []
+        max_lat = []
+        max_lon = []
+        for a, b, c, d in bbs:
+            min_lat.append(a)
+            min_lon.append(b)
+            max_lat.append(c)
+            max_lon.append(d)
+        return (min_lat, min_lon, max_lat, max_lon)
 
     if return_type == "list":
         return bbs
