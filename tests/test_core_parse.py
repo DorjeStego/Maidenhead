@@ -59,6 +59,11 @@ def test_precision_of(valid_locators):
     assert precision_of(loc8) == 8
 
 
+def test_precision_of_rejects_too_long():
+    with pytest.raises(PrecisionError):
+        precision_of("IO91wm34aa55")
+
+
 def test_normalize_rejects_invalid(invalid_locator_groups):
     length_invalid = invalid_locator_groups["length"][0]
     with pytest.raises(PrecisionError):
