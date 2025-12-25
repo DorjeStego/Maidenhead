@@ -316,6 +316,20 @@ def split_bbox(
     return None
 
 
+def split_bbox_list(
+    bbox: tuple[float, float, float, float],
+) -> list[tuple[float, float, float, float]]:
+    """
+    Return a list of non-degenerate bboxes after splitting at the antimeridian.
+    """
+    result = split_bbox(bbox)
+    if result is None:
+        return []
+    if len(result) == 4:
+        return [result]
+    return list(result)
+
+
 def contains_point(locator: LocatorLike, lat: float, lon: float) -> bool:
     """
     Return True if a point is within the locator bbox.

@@ -29,6 +29,7 @@ from maidenhead import (
     to_bbox,
     to_bbox_split,
     split_bbox,
+    split_bbox_list,
     to_center_latlon,
     to_geojson_polygon,
     to_geojson_feature,
@@ -100,6 +101,13 @@ def test_split_bbox_crosses_antimeridian():
 def test_split_bbox_none_for_normalized_bbox():
     bbox = (0.0, 190.0, 10.0, 200.0)
     assert split_bbox(bbox) is None
+
+
+def test_split_bbox_list_outputs():
+    bbox = (0.0, 170.0, 10.0, -170.0)
+    out = split_bbox_list(bbox)
+    assert out == [(0.0, 170.0, 10.0, 180.0), (0.0, -180.0, 10.0, -170.0)]
+    assert split_bbox_list((0.0, 179.0, 10.0, 180.0)) == [(0.0, 179.0, 10.0, 180.0)]
 
 
 def test_bbox_split_crosses_antimeridian_east(monkeypatch):
