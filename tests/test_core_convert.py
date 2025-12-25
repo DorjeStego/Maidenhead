@@ -147,6 +147,19 @@ def test_intersects_polygon(valid_locators):
     assert not intersects_polygon(loc, far_poly)
 
 
+def test_intersects_polygon_edge_crossing(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
+    mid_lat = (min_lat + max_lat) / 2.0
+    poly = [
+        (mid_lat - 0.01, min_lon - 0.1),
+        (mid_lat - 0.01, max_lon + 0.1),
+        (mid_lat + 0.01, max_lon + 0.1),
+        (mid_lat + 0.01, min_lon - 0.1),
+    ]
+    assert intersects_polygon(loc, poly)
+
+
 def test_cover_circle_includes_center():
     center = (0.0, 0.0)
     loc = from_latlon(*center, precision=6)
