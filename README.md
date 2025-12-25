@@ -62,7 +62,7 @@ mh bbox --file locators.txt --format csv
 
 Print locator components (field/square/subsquare/etc).
 
-mh parts IO83ri17
+mh parts IO83rj42
 
 mh parts FN31pr
 
@@ -70,21 +70,21 @@ mh parts FN31pr
 
 Print cell size (width height) for a locator.
 
-mh size IO83ri
+mh size IO83rj
 
-mh size IO83ri --unit km
+mh size IO83rj --unit km
 
-mh size IO83ri --unit km --lon-at 45
+mh size IO83rj --unit km --lon-at 45
 
-mh size IO83ri --unit miles --csv
+mh size IO83rj --unit miles --csv
 
 #### step
 
 Move a locator by a number of grid cells.
 
-mh step IO83ri --dlat-cells 1
+mh step IO83rj --dlat-cells 1
 
-mh step IO83ri --dlon-cells -2
+mh step IO83rj --dlon-cells -2
 
 #### from-latlon
 
@@ -124,11 +124,15 @@ Notes:
 
 Distance (km) between two locators or points (lat,lon).
 
-mh distance IO83ri FN31pr
+mh distance IO83rj FN31pr
 
 mh distance -33.8688,151.2093 51.5074,-0.1278
 
-mh distance IO83ri FN31pr --method geodesic
+mh distance IO83rj FN31pr --method geodesic
+
+Mixed input is supported (locator and lat,lon together):
+
+mh distance IO83rj 51.5074,-0.1278
 
 #### bearing
 
@@ -137,6 +141,10 @@ Initial bearing (degrees) from A to B.
 mh bearing CM98jw JO22db
 
 mh bearing 37.7749,-122.4194 48.8566,2.3522
+
+Mixed input is supported (locator and lat,lon together):
+
+mh bearing IO83rj 51.5074,-0.1278
 
 #### midpoint
 
