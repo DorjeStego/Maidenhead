@@ -381,6 +381,40 @@ def intersects_polygon(locator: LocatorLike, polygon: Sequence[tuple[float, floa
         return True
     if any(contains_point(locator, lat, lon) for lat, lon in polygon):
         return True
+    def _segments_intersect(a1, a2, b1, b2) -> bool:
+        def _orient(p, q, r):
+            return (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
+        def _on_segment(p, q, r):
+            return (
+                min(p[0], r[0]) <= q[0] <= max(p[0], r[0])
+                and min(p[1], r[1]) <= q[1] <= max(p[1], r[1])
+            )
+        o1 = _orient(a1, a2, b1)
+        o2 = _orient(a1, a2, b2)
+        o3 = _orient(b1, b2, a1)
+        o4 = _orient(b1, b2, a2)
+        if o1 == 0 and _on_segment(a1, b1, a2):
+            return True
+        if o2 == 0 and _on_segment(a1, b2, a2):
+            return True
+        if o3 == 0 and _on_segment(b1, a1, b2):
+            return True
+        if o4 == 0 and _on_segment(b1, a2, b2):
+            return True
+        return (o1 > 0) != (o2 > 0) and (o3 > 0) != (o4 > 0)
+
+    bbox_edges = [
+        ((min_lat, min_lon), (min_lat, max_lon)),
+        ((min_lat, max_lon), (max_lat, max_lon)),
+        ((max_lat, max_lon), (max_lat, min_lon)),
+        ((max_lat, min_lon), (min_lat, min_lon)),
+    ]
+    for i in range(len(polygon)):
+        p1 = polygon[i]
+        p2 = polygon[(i + 1) % len(polygon)]
+        for e1, e2 in bbox_edges:
+            if _segments_intersect(p1, p2, e1, e2):
+                return True
     return False
 
 
