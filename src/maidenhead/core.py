@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from typing import Iterable, Iterator, List, Literal, Sequence, Tuple, Union, overload
+from typing import Callable, Iterable, Iterator, List, Literal, Sequence, Tuple, Union, overload
 
 from . import constants as C
 from .errors import InvalidLocatorError, MaidenheadError, OutOfRangeError, PrecisionError, require
@@ -226,6 +226,85 @@ def to_center_latlon(locator: LocatorLike) -> tuple[float, float]:
     """Return (lat, lon) center of a locator cell."""
     min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
     return ((min_lat + max_lat) / 2.0, _normalize_lon((min_lon + max_lon) / 2.0))
+
+
+def to_geojson_polygon(locator: LocatorLike) -> dict:
+    """
+    Return a GeoJSON Polygon for the locator cell.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    ring = [
+        [min_lon, min_lat],
+        [max_lon, min_lat],
+        [max_lon, max_lat],
+        [min_lon, max_lat],
+        [min_lon, min_lat],
+    ]
+    return {"type": "Polygon", "coordinates": [ring]}
+
+
+def to_geojson_feature(locator: LocatorLike, properties: dict | None = None) -> dict:
+    """
+    Return a GeoJSON Feature for the locator cell.
+    """
+    return {
+        "type": "Feature",
+        "geometry": to_geojson_polygon(locator),
+        "properties": properties or {},
+    }
+
+
+def to_geojson_feature_collection(
+    locators: Sequence[LocatorLike],
+    properties_fn: Callable[[LocatorLike], dict] | None = None,
+) -> dict:
+    """
+    Return a GeoJSON FeatureCollection for locators.
+    """
+    features = []
+    for loc in locators:
+        props = properties_fn(loc) if properties_fn else None
+        features.append(to_geojson_feature(loc, properties=props))
+    return {"type": "FeatureCollection", "features": features}
+
+
+def to_geojson_bbox(locator: LocatorLike) -> list[float]:
+    """
+    Return GeoJSON bbox array [min_lon, min_lat, max_lon, max_lat].
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    return [min_lon, min_lat, max_lon, max_lat]
+
+
+def to_geojson_envelope(locator: LocatorLike) -> dict:
+    """
+    Return a GeoJSON Polygon using the bbox envelope.
+    """
+    bbox = to_geojson_bbox(locator)
+    min_lon, min_lat, max_lon, max_lat = bbox
+    ring = [
+        [min_lon, min_lat],
+        [max_lon, min_lat],
+        [max_lon, max_lat],
+        [min_lon, max_lat],
+        [min_lon, min_lat],
+    ]
+    return {"type": "Polygon", "coordinates": [ring], "bbox": bbox}
+
+def to_wkt(locator: LocatorLike) -> str:
+    """
+    Return a WKT Polygon string for the locator cell.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    ring = [
+        (min_lon, min_lat),
+        (max_lon, min_lat),
+        (max_lon, max_lat),
+        (min_lon, max_lat),
+        (min_lon, min_lat),
+    ]
+    coords = ", ".join(f"{lon} {lat}" for lon, lat in ring)
+    return f"POLYGON(({coords}))"
 
 
 def corners(
@@ -623,6 +702,30 @@ def adjacent(locator: LocatorLike, *, diagonals: bool = False) -> dict[str, Grid
         out[key] = from_latlon(lat2, lon2, precision=p, clamp=True)
 
     return out
+
+
+def step(locator: LocatorLike, *, dlat_cells: int = 0, dlon_cells: int = 0) -> GridSquare:
+    """
+    Move by a number of cells in latitude/longitude directions.
+
+    Positive dlat_cells moves north, positive dlon_cells moves east.
+    """
+    require(isinstance(dlat_cells, int), ValueError, "dlat_cells must be int", dlat_cells=dlat_cells)
+    require(isinstance(dlon_cells, int), ValueError, "dlon_cells must be int", dlon_cells=dlon_cells)
+
+    s = _coerce_locator_text(locator)
+    s = normalize(s)
+    p = len(s)
+
+    min_lat, min_lon, max_lat, max_lon = to_bbox(s)
+    dlat = (max_lat - min_lat)
+    dlon = (max_lon - min_lon)
+    clat, clon = to_center_latlon(s)
+
+    lat2 = clat + dlat_cells * dlat
+    lon2 = _normalize_lon(clon + dlon_cells * dlon)
+    lat2 = _clamp_lat(lat2)
+    return from_latlon(lat2, lon2, precision=p, clamp=True)
 
 
 def contains(outer: LocatorLike, inner: LocatorLike) -> bool:

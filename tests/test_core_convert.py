@@ -14,8 +14,15 @@ from maidenhead import (
     neighbors,
     normalize,
     parent,
+    step,
     to_bbox,
     to_center_latlon,
+    to_geojson_polygon,
+    to_geojson_feature,
+    to_geojson_feature_collection,
+    to_geojson_bbox,
+    to_geojson_envelope,
+    to_wkt,
 )
 from maidenhead import constants as C
 from maidenhead.errors import PrecisionError
@@ -41,7 +48,55 @@ def test_bbox_contains_center(valid_locators):
         min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
         lat, lon = to_center_latlon(loc)
         assert min_lat <= lat <= max_lat
-        assert min_lon <= lon <= max_lon
+    assert min_lon <= lon <= max_lon
+
+
+def test_geojson_polygon_matches_bbox(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
+    geojson = to_geojson_polygon(loc)
+    assert geojson["type"] == "Polygon"
+    ring = geojson["coordinates"][0]
+    assert ring[0] == [min_lon, min_lat]
+    assert ring[1] == [max_lon, min_lat]
+    assert ring[2] == [max_lon, max_lat]
+    assert ring[3] == [min_lon, max_lat]
+    assert ring[4] == [min_lon, min_lat]
+
+
+def test_geojson_feature(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    feature = to_geojson_feature(loc, properties={"name": "cell"})
+    assert feature["type"] == "Feature"
+    assert feature["properties"]["name"] == "cell"
+    assert feature["geometry"]["type"] == "Polygon"
+
+
+def test_geojson_feature_collection(valid_locators):
+    locs = valid_locators[:2]
+    fc = to_geojson_feature_collection(locs, properties_fn=lambda l: {"loc": l})
+    assert fc["type"] == "FeatureCollection"
+    assert len(fc["features"]) == 2
+    assert fc["features"][0]["properties"]["loc"] == locs[0]
+
+
+def test_geojson_bbox_and_envelope(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    bbox = to_geojson_bbox(loc)
+    env = to_geojson_envelope(loc)
+    assert env["bbox"] == bbox
+    assert env["type"] == "Polygon"
+
+
+def test_wkt_matches_bbox(valid_locators):
+    loc = _pick_by_length(valid_locators, 6)
+    min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
+    wkt = to_wkt(loc)
+    expected = (
+        f"POLYGON(({min_lon} {min_lat}, {max_lon} {min_lat}, "
+        f"{max_lon} {max_lat}, {min_lon} {max_lat}, {min_lon} {min_lat}))"
+    )
+    assert wkt == expected
 
 
 def test_corners_match_bbox(valid_locators):
@@ -158,6 +213,21 @@ def test_adjacent_diagonals_matches_neighbors(valid_locators):
     assert set(adj.keys()) == {"N", "S", "E", "W", "NE", "NW", "SE", "SW"}
     all_dirs = {g.locator for g in neighbors(loc, diagonals=True)}
     assert {g.locator for g in adj.values()} <= all_dirs
+
+
+def test_step_matches_adjacent(valid_locators):
+    rng = random.Random(16)
+    loc = rng.choice(valid_locators)
+    adj = adjacent(loc, diagonals=False)
+    assert step(loc, dlat_cells=1).locator == adj["N"].locator
+    assert step(loc, dlat_cells=-1).locator == adj["S"].locator
+    assert step(loc, dlon_cells=1).locator == adj["E"].locator
+    assert step(loc, dlon_cells=-1).locator == adj["W"].locator
+
+
+def test_step_zero_returns_same(valid_locators):
+    loc = valid_locators[0]
+    assert step(loc).locator == normalize(loc)
 
 
 def test_contains_parent_child(valid_locators):
