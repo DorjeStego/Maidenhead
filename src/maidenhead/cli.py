@@ -7,7 +7,10 @@ from typing import Sequence
 
 from . import __version__
 from .core import (
+    area_km2,
     cell_size,
+    cell_size_km,
+    diagonal_km,
     from_latlon,
     format_locator,
     normalize,
@@ -130,6 +133,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Latitude for computing east-west size along the parallel (km/miles only).",
     )
+    p_size.add_argument(
+        "--at-lat",
+        type=float,
+        default=None,
+        help="Alias for --lon-at.",
+    )
+    p_size.add_argument(
+        "--method",
+        choices=["spherical", "geodesic"],
+        default="spherical",
+        help="Distance method for km/miles (default: spherical).",
+    )
     _add_common_args(p_size)
 
     # step
@@ -175,6 +190,28 @@ def build_parser() -> argparse.ArgumentParser:
         default="center",
         help="Precision change mode (default: center).",
     )
+
+    # area
+    p_area = sub.add_parser("area", help="Print cell area (km^2).")
+    p_area.add_argument("locator", help="Maidenhead locator")
+    p_area.add_argument(
+        "--method",
+        choices=["spherical", "geodesic"],
+        default="spherical",
+        help="Area method (default: spherical).",
+    )
+    _add_common_args(p_area)
+
+    # diagonal
+    p_diag = sub.add_parser("diagonal", help="Print cell diagonal length (km).")
+    p_diag.add_argument("locator", help="Maidenhead locator")
+    p_diag.add_argument(
+        "--method",
+        choices=["spherical", "geodesic"],
+        default="spherical",
+        help="Distance method (default: spherical).",
+    )
+    _add_common_args(p_diag)
 
     # distance
     p_dist = sub.add_parser("distance", help="Distance (km) between two locators or points.")
@@ -353,14 +390,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.cmd == "size":
-            if args.lon_at is None:
+            at_lat = args.lon_at if args.lon_at is not None else args.at_lat
+            if args.unit == "deg":
+                if at_lat is not None:
+                    raise ValueError("--at-lat requires --unit km or miles")
                 width, height = cell_size(args.locator, unit=args.unit)
             else:
-                if args.unit == "deg":
-                    raise ValueError("--lon-at requires --unit km or miles")
-                g = parse(args.locator)
-                width = g.size_km_lon_at(args.lon_at)
-                height = g.size_km_lat
+                width, height = cell_size_km(
+                    args.locator,
+                    at_lat=at_lat,
+                    method=args.method,
+                )
                 if args.unit == "miles":
                     miles_per_km = 0.621371
                     width *= miles_per_km
@@ -372,6 +412,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.cmd == "step":
             g = step(args.locator, dlat_cells=args.dlat_cells, dlon_cells=args.dlon_cells)
             print(g.locator)
+            return 0
+
+        if args.cmd == "area":
+            area = area_km2(args.locator, method=args.method)
+            print(_fmt_float(area, args.digits))
+            return 0
+
+        if args.cmd == "diagonal":
+            dist = diagonal_km(args.locator, method=args.method)
+            print(_fmt_float(dist, args.digits))
             return 0
 
         if args.cmd == "from-latlon":

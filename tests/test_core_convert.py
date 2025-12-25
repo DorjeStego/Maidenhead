@@ -6,6 +6,10 @@ from maidenhead import (
     adjacent,
     azimuth,
     cell_size,
+    cell_size_deg,
+    cell_size_km,
+    area_km2,
+    diagonal_km,
     children,
     contains,
     corners,
@@ -171,6 +175,28 @@ def test_cell_size_degrees_from_precision():
     step = C.step_size_for_pair(2)
     assert width == pytest.approx(step.lon_step_deg)
     assert height == pytest.approx(step.lat_step_deg)
+
+
+def test_cell_size_deg_matches_cell_size(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    assert cell_size_deg(loc) == cell_size(loc, unit="deg")
+
+
+def test_cell_size_km_at_lat(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    width_center, height_center = cell_size_km(loc)
+    width_at = cell_size_km(loc, at_lat=10.0)[0]
+    assert height_center > 0
+    assert width_center > 0
+    assert width_at > 0
+
+
+def test_area_km2_and_diagonal(valid_locators):
+    loc = _pick_by_length(valid_locators, 4)
+    area = area_km2(loc)
+    diag = diagonal_km(loc)
+    assert area > 0
+    assert diag > 0
 
 
 def test_cell_size_degrees_from_locator(valid_locators):

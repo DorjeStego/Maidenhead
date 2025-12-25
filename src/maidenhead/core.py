@@ -5,7 +5,14 @@ import math
 from typing import Callable, Iterable, Iterator, List, Literal, Sequence, Tuple, Union, overload
 
 from . import constants as C
-from .errors import InvalidLocatorError, MaidenheadError, OutOfRangeError, PrecisionError, require
+from .errors import (
+    InvalidLocatorError,
+    MaidenheadError,
+    MissingDependencyError,
+    OutOfRangeError,
+    PrecisionError,
+    require,
+)
 from .geo import bearing_deg, distance_km
 from .mh_types import GridSquare, LocatorLike, validate_precision
 
@@ -482,6 +489,86 @@ def cell_size(
         miles_per_km = 0.621371
         return (width_km * miles_per_km, height_km * miles_per_km)
     raise ValueError(f"Unknown unit: {unit!r}")
+
+
+def cell_size_deg(locator: LocatorLike) -> tuple[float, float]:
+    """Return (lon_deg, lat_deg) for the locator cell."""
+    return cell_size(locator, unit="deg")
+
+
+def cell_size_km(
+    locator: LocatorLike,
+    *,
+    at_lat: float | None = None,
+    method: Literal["spherical", "geodesic"] = "spherical",
+) -> tuple[float, float]:
+    """
+    Return (width_km, height_km) for a locator cell.
+
+    If at_lat is provided, width is computed along that latitude.
+    """
+    if method not in ("spherical", "geodesic"):
+        raise ValueError(f"Unknown method: {method!r}")
+    if at_lat is None and method == "spherical":
+        return cell_size(locator, unit="km")
+
+    lon_deg, lat_deg = cell_size_deg(locator)
+    if at_lat is None:
+        at_lat = to_center_latlon(locator)[0]
+
+    half_lon = lon_deg / 2.0
+    half_lat = lat_deg / 2.0
+    lat, lon = to_center_latlon(locator)
+    method_km = "geodesic" if method == "geodesic" else "haversine"
+    width_km = distance_km((at_lat, lon - half_lon), (at_lat, lon + half_lon), method=method_km)
+    height_km = distance_km((lat - half_lat, lon), (lat + half_lat, lon), method=method_km)
+    return (width_km, height_km)
+
+
+def area_km2(
+    locator: LocatorLike,
+    *,
+    method: Literal["spherical", "geodesic"] = "spherical",
+) -> float:
+    """
+    Return approximate area in square kilometers.
+    """
+    if method == "spherical":
+        width_km, height_km = cell_size_km(locator)
+        return width_km * height_km
+    if method == "geodesic":
+        try:
+            from geographiclib.geodesic import Geodesic  # type: ignore
+        except Exception as exc:
+            raise MissingDependencyError(
+                "geodesic area requires 'geographiclib' (pip install geographiclib)"
+            ) from exc
+
+        min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+        poly = Geodesic.WGS84.Polygon()
+        for lat, lon in [
+            (min_lat, min_lon),
+            (min_lat, max_lon),
+            (max_lat, max_lon),
+            (max_lat, min_lon),
+        ]:
+            poly.AddPoint(lat, lon)
+        _, _, area = poly.Compute()
+        return abs(area) / 1_000_000.0
+    raise ValueError(f"Unknown method: {method!r}")
+
+
+def diagonal_km(
+    locator: LocatorLike,
+    *,
+    method: Literal["spherical", "geodesic"] = "spherical",
+) -> float:
+    """
+    Return diagonal distance (SW to NE) in kilometers.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    method_km = "geodesic" if method == "geodesic" else "haversine"
+    return distance_km((min_lat, min_lon), (max_lat, max_lon), method=method_km)
 
 
 def from_latlon(

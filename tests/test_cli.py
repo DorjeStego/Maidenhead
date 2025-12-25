@@ -142,6 +142,26 @@ def test_cli_format_truncate(capsys, valid_locators):
     assert len(captured.out.strip()) == 2
 
 
+def test_cli_size_at_lat(capsys, valid_locators):
+    loc = valid_locators[0]
+    code = main(["size", loc, "--unit", "km", "--at-lat", "10"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert " " in captured.out.strip()
+
+
+def test_cli_area_diagonal(capsys, valid_locators):
+    loc = valid_locators[0]
+    code = main(["area", loc])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+    code = main(["diagonal", loc])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
 def test_cli_geojson_feature(capsys, valid_locators):
     if orjson is None:
         pytest.skip("orjson not installed")
