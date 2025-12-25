@@ -5,7 +5,14 @@ import math
 from typing import Callable, Iterable, Iterator, List, Literal, Sequence, Tuple, Union, overload
 
 from . import constants as C
-from .errors import InvalidLocatorError, MaidenheadError, OutOfRangeError, PrecisionError, require
+from .errors import (
+    InvalidLocatorError,
+    MaidenheadError,
+    MissingDependencyError,
+    OutOfRangeError,
+    PrecisionError,
+    require,
+)
 from .geo import bearing_deg, distance_km
 from .mh_types import GridSquare, LocatorLike, validate_precision
 
@@ -170,6 +177,53 @@ def parse(locator: str) -> GridSquare:
     return GridSquare(norm)
 
 
+def format_locator(
+    locator: LocatorLike,
+    *,
+    precision: int,
+    mode: Literal["truncate", "center", "error"] = "center",
+) -> GridSquare:
+    """
+    Convert a locator to a target precision.
+
+    mode:
+      - "truncate": drop pairs to reach target precision
+      - "center": use the locator center to re-encode at target precision
+      - "error": raise if precision differs
+    """
+    s = _coerce_locator_text(locator)
+    s = normalize(s)
+    p = len(s)
+    target = validate_precision(int(precision))
+
+    if target == p:
+        return GridSquare(s)
+
+    if mode == "error":
+        raise PrecisionError(
+            "precision does not match locator",
+            precision=target,
+            locator_precision=p,
+        )
+
+    if target < p:
+        if mode not in ("truncate", "center"):
+            raise ValueError(f"Unknown mode: {mode!r}")
+        return parent(s, precision=target)
+
+    # target > p
+    if mode == "truncate":
+        raise PrecisionError(
+            "cannot truncate to a higher precision",
+            precision=target,
+            locator_precision=p,
+        )
+    if mode == "center":
+        lat, lon = to_center_latlon(s)
+        return from_latlon(lat, lon, precision=target)
+    raise ValueError(f"Unknown mode: {mode!r}")
+
+
 def _decode_indices(locator: str) -> tuple[list[int], list[int]]:
     """
     Decode a canonical (or at least validated) locator into index lists.
@@ -220,6 +274,270 @@ def to_bbox(locator: LocatorLike) -> tuple[float, float, float, float]:
         lat_min += lat_indices[i] * lat_cell
 
     return (lat_min, lon_min, lat_min + lat_cell, lon_min + lon_cell)
+
+
+def to_bbox_split(
+    locator: LocatorLike,
+) -> tuple[tuple[float, float, float, float], tuple[float, float, float, float]] | None:
+    """
+    Return (west_bbox, east_bbox) if the cell crosses the antimeridian.
+
+    Each bbox is (min_lat, min_lon, max_lat, max_lon). Returns None if no split.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    if max_lon <= C.LON_MAX_DEG and min_lon >= C.LON_MIN_DEG:
+        return None
+
+    if max_lon > C.LON_MAX_DEG:
+        west = (min_lat, min_lon, max_lat, C.LON_MAX_DEG)
+        east = (min_lat, C.LON_MIN_DEG, max_lat, max_lon - C.LON_SPAN_DEG)
+        return (west, east)
+
+    if min_lon < C.LON_MIN_DEG:
+        west = (min_lat, min_lon + C.LON_SPAN_DEG, max_lat, C.LON_MAX_DEG)
+        east = (min_lat, C.LON_MIN_DEG, max_lat, max_lon)
+        return (west, east)
+
+    return None
+
+
+def contains_point(locator: LocatorLike, lat: float, lon: float) -> bool:
+    """
+    Return True if a point is within the locator bbox.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    if min_lat <= lat <= max_lat:
+        if min_lon <= max_lon:
+            return min_lon <= lon <= max_lon
+        # dateline wrap
+        return lon >= min_lon or lon <= max_lon
+    return False
+
+
+def intersects_bbox(
+    locator: LocatorLike,
+    bbox: tuple[float, float, float, float],
+) -> bool:
+    """
+    Return True if locator bbox intersects the given bbox.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    min_lat_b, min_lon_b, max_lat_b, max_lon_b = bbox
+
+    if max_lat < min_lat_b or max_lat_b < min_lat:
+        return False
+
+    def _lon_overlap(a_min: float, a_max: float, b_min: float, b_max: float) -> bool:
+        if a_min <= a_max and b_min <= b_max:
+            return not (a_max < b_min or b_max < a_min)
+        # handle wrap by splitting
+        if a_min > a_max:
+            return _lon_overlap(a_min, C.LON_MAX_DEG, b_min, b_max) or _lon_overlap(
+                C.LON_MIN_DEG, a_max, b_min, b_max
+            )
+        if b_min > b_max:
+            return _lon_overlap(a_min, a_max, b_min, C.LON_MAX_DEG) or _lon_overlap(
+                a_min, a_max, C.LON_MIN_DEG, b_max
+            )
+        return False
+
+    return _lon_overlap(min_lon, max_lon, min_lon_b, max_lon_b)
+
+
+def intersects_polygon(locator: LocatorLike, polygon: Sequence[tuple[float, float]]) -> bool:
+    """
+    Return True if locator bbox intersects a polygon (lat, lon tuples).
+    """
+    if len(polygon) < 3:
+        raise ValueError("polygon must have at least 3 points")
+
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    poly_lats = [p[0] for p in polygon]
+    poly_lons = [p[1] for p in polygon]
+    poly_bbox = (min(poly_lats), min(poly_lons), max(poly_lats), max(poly_lons))
+    if not intersects_bbox(locator, poly_bbox):
+        return False
+
+    def _point_in_poly(lat: float, lon: float) -> bool:
+        inside = False
+        j = len(polygon) - 1
+        for i in range(len(polygon)):
+            lat_i, lon_i = polygon[i]
+            lat_j, lon_j = polygon[j]
+            if ((lon_i > lon) != (lon_j > lon)) and (
+                lat < (lat_j - lat_i) * (lon - lon_i) / (lon_j - lon_i + 1e-15) + lat_i
+            ):
+                inside = not inside
+            j = i
+        return inside
+
+    corners_pts = [
+        (min_lat, min_lon),
+        (min_lat, max_lon),
+        (max_lat, max_lon),
+        (max_lat, min_lon),
+    ]
+    if any(_point_in_poly(lat, lon) for lat, lon in corners_pts):
+        return True
+    if any(contains_point(locator, lat, lon) for lat, lon in polygon):
+        return True
+    return False
+
+
+def _resolve_point_latlon(point: LocatorLike | tuple[float, float]) -> tuple[float, float]:
+    if isinstance(point, GridSquare):
+        return to_center_latlon(point)
+    if isinstance(point, str):
+        if "," in point:
+            parts = [p.strip() for p in point.split(",")]
+            if len(parts) == 2:
+                return (float(parts[0]), float(parts[1]))
+        return to_center_latlon(point)
+    if (
+        isinstance(point, tuple)
+        and len(point) == 2
+        and isinstance(point[0], (int, float))
+        and isinstance(point[1], (int, float))
+    ):
+        return (float(point[0]), float(point[1]))
+    raise InvalidLocatorError("point must be locator or (lat, lon)", point=point)
+
+
+def cover_circle(
+    center: LocatorLike | tuple[float, float],
+    radius_km: float,
+    precision: int,
+) -> list[GridSquare]:
+    """
+    Return locators whose bbox intersects a circle.
+    """
+    lat_c, lon_c = _resolve_point_latlon(center)
+    radius_km = float(radius_km)
+    if radius_km <= 0:
+        raise ValueError("radius_km must be > 0")
+
+    lat_deg = radius_km / 111.32
+    cos_lat = math.cos(math.radians(lat_c))
+    lon_deg = 180.0 if abs(cos_lat) < 1e-12 else radius_km / (111.32 * cos_lat)
+
+    min_lat = max(C.LAT_MIN_DEG, lat_c - lat_deg)
+    max_lat = min(C.LAT_MAX_DEG, lat_c + lat_deg)
+    min_lon = lon_c - lon_deg
+    max_lon = lon_c + lon_deg
+
+    lon_step, lat_step = cell_size(precision)
+    lat = min_lat + lat_step / 2.0
+
+    def _lon_ranges(min_l: float, max_l: float) -> list[tuple[float, float]]:
+        if min_l <= max_l:
+            return [(min_l, max_l)]
+        return [(min_l, C.LON_MAX_DEG), (C.LON_MIN_DEG, max_l)]
+
+    ranges = _lon_ranges(min_lon, max_lon)
+    out: list[GridSquare] = []
+    seen: set[str] = set()
+    center_loc = from_latlon(lat_c, lon_c, precision=precision)
+    out.append(center_loc)
+    seen.add(center_loc.locator)
+    while lat <= max_lat:
+        for lo_min, lo_max in ranges:
+            lon = lo_min + lon_step / 2.0
+            while lon <= lo_max:
+                loc = from_latlon(lat, lon, precision=precision)
+                if loc.locator not in seen:
+                    center_lat, center_lon = to_center_latlon(loc)
+                    diag = diagonal_km(loc)
+                    if distance_km((lat_c, lon_c), (center_lat, center_lon)) <= radius_km + diag / 2.0:
+                        out.append(loc)
+                        seen.add(loc.locator)
+                lon += lon_step
+        lat += lat_step
+    return out
+
+
+def _interpolate_greatcircle(
+    a: tuple[float, float],
+    b: tuple[float, float],
+    fraction: float,
+) -> tuple[float, float]:
+    lat1, lon1 = map(math.radians, a)
+    lat2, lon2 = map(math.radians, b)
+    d = 2.0 * math.asin(
+        math.sqrt(
+            math.sin((lat2 - lat1) / 2.0) ** 2
+            + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2.0) ** 2
+        )
+    )
+    if d == 0.0:
+        return a
+    a_coeff = math.sin((1.0 - fraction) * d) / math.sin(d)
+    b_coeff = math.sin(fraction * d) / math.sin(d)
+    x = a_coeff * math.cos(lat1) * math.cos(lon1) + b_coeff * math.cos(lat2) * math.cos(lon2)
+    y = a_coeff * math.cos(lat1) * math.sin(lon1) + b_coeff * math.cos(lat2) * math.sin(lon2)
+    z = a_coeff * math.sin(lat1) + b_coeff * math.sin(lat2)
+    lat = math.atan2(z, math.sqrt(x * x + y * y))
+    lon = math.atan2(y, x)
+    return (math.degrees(lat), _normalize_lon(math.degrees(lon)))
+
+
+def cover_line(
+    a: LocatorLike | tuple[float, float],
+    b: LocatorLike | tuple[float, float],
+    precision: int,
+    *,
+    method: Literal["geodesic", "greatcircle"] = "greatcircle",
+) -> list[GridSquare]:
+    """
+    Return locators whose center points follow a line between a and b.
+    """
+    p1 = _resolve_point_latlon(a)
+    p2 = _resolve_point_latlon(b)
+    precision = validate_precision(int(precision))
+
+    total = distance_km(p1, p2, method="geodesic" if method == "geodesic" else "haversine")
+    mid_lat = (p1[0] + p2[0]) / 2.0
+    mid_lon = _normalize_lon((p1[1] + p2[1]) / 2.0)
+    step = diagonal_km(from_latlon(mid_lat, mid_lon, precision=precision))
+    steps = max(1, int(math.ceil(total / max(step, 1e-6))))
+
+    out: list[GridSquare] = []
+    seen: set[str] = set()
+    if method == "geodesic":
+        try:
+            from geographiclib.geodesic import Geodesic  # type: ignore
+        except Exception as exc:
+            raise MissingDependencyError(
+                "geodesic line requires 'geographiclib' (pip install geographiclib)"
+            ) from exc
+        line = Geodesic.WGS84.InverseLine(p1[0], p1[1], p2[0], p2[1])
+        for i in range(steps + 1):
+            s = (line.s13 * i) / steps
+            pos = line.Position(s)
+            lat, lon = float(pos["lat2"]), float(pos["lon2"])
+            loc = from_latlon(lat, lon, precision=precision)
+            if loc.locator not in seen:
+                out.append(loc)
+                seen.add(loc.locator)
+        return out
+
+    for i in range(steps + 1):
+        frac = i / steps
+        lat, lon = _interpolate_greatcircle(p1, p2, frac)
+        loc = from_latlon(lat, lon, precision=precision)
+        if loc.locator not in seen:
+            out.append(loc)
+            seen.add(loc.locator)
+    return out
+
+
+def to_utm_zone(locator: LocatorLike) -> str:
+    """
+    Return UTM zone string like "33N" based on the locator center.
+    """
+    lat, lon = to_center_latlon(locator)
+    zone = int((lon + 180.0) // 6.0) + 1
+    hemisphere = "N" if lat >= 0 else "S"
+    return f"{zone}{hemisphere}"
 
 
 def to_center_latlon(locator: LocatorLike) -> tuple[float, float]:
@@ -410,6 +728,86 @@ def cell_size(
         miles_per_km = 0.621371
         return (width_km * miles_per_km, height_km * miles_per_km)
     raise ValueError(f"Unknown unit: {unit!r}")
+
+
+def cell_size_deg(locator: LocatorLike) -> tuple[float, float]:
+    """Return (lon_deg, lat_deg) for the locator cell."""
+    return cell_size(locator, unit="deg")
+
+
+def cell_size_km(
+    locator: LocatorLike,
+    *,
+    at_lat: float | None = None,
+    method: Literal["spherical", "geodesic"] = "spherical",
+) -> tuple[float, float]:
+    """
+    Return (width_km, height_km) for a locator cell.
+
+    If at_lat is provided, width is computed along that latitude.
+    """
+    if method not in ("spherical", "geodesic"):
+        raise ValueError(f"Unknown method: {method!r}")
+    if at_lat is None and method == "spherical":
+        return cell_size(locator, unit="km")
+
+    lon_deg, lat_deg = cell_size_deg(locator)
+    if at_lat is None:
+        at_lat = to_center_latlon(locator)[0]
+
+    half_lon = lon_deg / 2.0
+    half_lat = lat_deg / 2.0
+    lat, lon = to_center_latlon(locator)
+    method_km = "geodesic" if method == "geodesic" else "haversine"
+    width_km = distance_km((at_lat, lon - half_lon), (at_lat, lon + half_lon), method=method_km)
+    height_km = distance_km((lat - half_lat, lon), (lat + half_lat, lon), method=method_km)
+    return (width_km, height_km)
+
+
+def area_km2(
+    locator: LocatorLike,
+    *,
+    method: Literal["spherical", "geodesic"] = "spherical",
+) -> float:
+    """
+    Return approximate area in square kilometers.
+    """
+    if method == "spherical":
+        width_km, height_km = cell_size_km(locator)
+        return width_km * height_km
+    if method == "geodesic":
+        try:
+            from geographiclib.geodesic import Geodesic  # type: ignore
+        except Exception as exc:
+            raise MissingDependencyError(
+                "geodesic area requires 'geographiclib' (pip install geographiclib)"
+            ) from exc
+
+        min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+        poly = Geodesic.WGS84.Polygon()
+        for lat, lon in [
+            (min_lat, min_lon),
+            (min_lat, max_lon),
+            (max_lat, max_lon),
+            (max_lat, min_lon),
+        ]:
+            poly.AddPoint(lat, lon)
+        _, _, area = poly.Compute()
+        return abs(area) / 1_000_000.0
+    raise ValueError(f"Unknown method: {method!r}")
+
+
+def diagonal_km(
+    locator: LocatorLike,
+    *,
+    method: Literal["spherical", "geodesic"] = "spherical",
+) -> float:
+    """
+    Return diagonal distance (SW to NE) in kilometers.
+    """
+    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    method_km = "geodesic" if method == "geodesic" else "haversine"
+    return distance_km((min_lat, min_lon), (max_lat, max_lon), method=method_km)
 
 
 def from_latlon(
@@ -624,6 +1022,9 @@ def neighbors(locator: LocatorLike, *, ring: int = 1, diagonals: bool = True) ->
 
     Implementation is robust (works across carries) by stepping in degrees from
     the cell center and re-encoding at the same precision.
+
+    Note: near the poles, latitude clamping can cause distinct offsets to map
+    to the same cell; duplicates are deduplicated in the output.
     """
     require(isinstance(ring, int) and ring >= 1, ValueError, "ring must be an integer >= 1", ring=ring)
 

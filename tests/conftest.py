@@ -1,7 +1,20 @@
 import json
+import sys
 from pathlib import Path
 
 import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+if "maidenhead" in sys.modules:
+    mod = sys.modules["maidenhead"]
+    mod_path = getattr(mod, "__file__", "")
+    if mod_path and not Path(mod_path).resolve().is_relative_to(SRC):
+        for name in list(sys.modules):
+            if name == "maidenhead" or name.startswith("maidenhead."):
+                sys.modules.pop(name, None)
 
 
 @pytest.fixture(scope="session")
