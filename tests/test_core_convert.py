@@ -82,11 +82,7 @@ def test_bbox_split_none_at_dateline_edge():
     loc = from_latlon(0.0, 179.999, precision=6)
     min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
     assert max_lon == pytest.approx(180.0)
-    west, east = to_bbox_split(loc)
-    assert west[1] == pytest.approx(min_lon)
-    assert west[3] == pytest.approx(180.0)
-    assert east[1] == pytest.approx(-180.0)
-    assert east[3] == pytest.approx(-180.0)
+    assert to_bbox_split(loc) is None
 
 
 def test_split_bbox_crosses_antimeridian():
