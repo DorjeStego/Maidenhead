@@ -14,6 +14,7 @@ from maidenhead import (
     to_center_latlon,
     to_center_many,
 )
+from maidenhead.errors import OutOfRangeError
 
 
 def _by_length(valid_locators):
@@ -68,6 +69,39 @@ def test_from_latlon_many_roundtrip(valid_locators):
         lats, lons = to_center_many(sample)
         out = from_latlon_many(lats, lons, precision=length)
         assert out == [normalize(loc) for loc in sample]
+
+
+def test_from_latlon_many_resolution_fallback():
+    lats = [0.0, 10.0]
+    lons = [0.0, 10.0]
+    out = from_latlon_many(lats, lons, precision=8, resolution_deg=1.0)
+    assert all(len(loc) == 4 for loc in out)
+
+
+def test_from_latlon_many_mismatched_lengths():
+    with pytest.raises(OutOfRangeError):
+        from_latlon_many([0.0], [0.0, 1.0])
+
+
+def test_to_center_many_with_gridsquare(valid_locators):
+    locs = [GridSquare(normalize(loc)) for loc in valid_locators[:3]]
+    lats, lons = to_center_many(locs)
+    assert len(lats) == len(locs)
+    assert len(lons) == len(locs)
+
+
+def test_to_center_many_empty():
+    lats, lons = to_center_many([])
+    assert lats == []
+    assert lons == []
+
+
+def test_to_bbox_many_empty():
+    min_lats, min_lons, max_lats, max_lons = to_bbox_many([])
+    assert min_lats == []
+    assert min_lons == []
+    assert max_lats == []
+    assert max_lons == []
 
 
 def test_cell_size_many(valid_locators):
