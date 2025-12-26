@@ -595,9 +595,12 @@ def to_geojson_feature_collection_many(
     *,
     return_type: str = "auto",
 ) -> Any:
-    if return_type not in ("auto", "list"):
-        raise ValueError("return_type must be 'auto' or 'list'")
-    return to_geojson_feature_collection(locators)
+    out = [to_geojson_feature(loc) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="geojson_feature_collection")
+    return out
 
 
 def to_geojson_bbox_many(

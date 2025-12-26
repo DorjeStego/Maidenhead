@@ -12,6 +12,7 @@ from maidenhead.vector import (
     to_geojson_bbox_many,
     to_geojson_envelope_many,
     to_geojson_feature_collection_many,
+    to_geojson_feature,
     to_geojson_feature_many,
     to_geojson_polygon_many,
     neighbors_many,
@@ -121,8 +122,10 @@ def test_to_geojson_feature_many_pandas():
 def test_to_geojson_feature_collection_many():
     locs = pd.Series(["IO83ri", "JO22db"], index=["a", "b"])
     out = to_geojson_feature_collection_many(locs)
-    assert out["type"] == "FeatureCollection"
-    assert len(out["features"]) == 2
+    assert isinstance(out, pd.Series)
+    assert out.index.tolist() == ["a", "b"]
+    assert out.name == "geojson_feature_collection"
+    assert out.tolist() == [to_geojson_feature(loc) for loc in locs.tolist()]
 
 
 def test_to_geojson_bbox_many_pandas():

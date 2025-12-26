@@ -329,8 +329,8 @@ def to_geojson_feature_many(locators: Iterable[LocatorLike]) -> list[dict]:
     return [to_geojson_feature(loc) for loc in locators]
 
 
-def to_geojson_feature_collection_many(locators: Iterable[LocatorLike]) -> dict:
-    return to_geojson_feature_collection(locators)
+def to_geojson_feature_collection_many(locators: Iterable[LocatorLike]) -> list[dict]:
+    return [to_geojson_feature(loc) for loc in locators]
 
 
 def to_geojson_bbox_many(locators: Iterable[LocatorLike]) -> list[list[float]]:

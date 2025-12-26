@@ -395,7 +395,7 @@ def test_to_geojson_feature_collection_many(valid_locators):
     rng = random.Random(39)
     locs = rng.sample(valid_locators, min(3, len(valid_locators)))
     out = to_geojson_feature_collection_many(locs)
-    assert out == to_geojson_feature_collection(locs)
+    assert out == [to_geojson_feature(loc) for loc in locs]
 
 
 def test_to_geojson_bbox_many(valid_locators):
