@@ -470,14 +470,25 @@ def intersects_polygon(locator: LocatorLike, polygon: Sequence[tuple[float, floa
     return False
 
 
+def _parse_latlon_text(text: str) -> tuple[float, float] | None:
+    if "," not in text:
+        return None
+    parts = [p.strip() for p in text.split(",")]
+    if len(parts) != 2:
+        return None
+    try:
+        return (float(parts[0]), float(parts[1]))
+    except ValueError:
+        return None
+
+
 def _resolve_point_latlon(point: LocatorLike | tuple[float, float]) -> tuple[float, float]:
     if isinstance(point, GridSquare):
         return to_center_latlon(point)
     if isinstance(point, str):
-        if "," in point:
-            parts = [p.strip() for p in point.split(",")]
-            if len(parts) == 2:
-                return (float(parts[0]), float(parts[1]))
+        latlon = _parse_latlon_text(point)
+        if latlon is not None:
+            return latlon
         return to_center_latlon(point)
     if (
         isinstance(point, tuple)
@@ -487,6 +498,19 @@ def _resolve_point_latlon(point: LocatorLike | tuple[float, float]) -> tuple[flo
     ):
         return (float(point[0]), float(point[1]))
     raise InvalidLocatorError("point must be locator or (lat, lon)", point=point)
+
+
+def _resolve_geom_input(
+    value: LocatorLike | tuple[float, float],
+) -> tuple[bool, tuple[float, float, float, float] | None, tuple[float, float] | None]:
+    if isinstance(value, tuple) and len(value) == 2:
+        lat, lon = value
+        return True, None, (float(lat), float(lon))
+    if isinstance(value, str):
+        latlon = _parse_latlon_text(value)
+        if latlon is not None:
+            return True, None, latlon
+    return False, to_bbox(value), None
 
 
 def cover_circle(
@@ -632,11 +656,16 @@ def to_center_latlon(locator: LocatorLike) -> tuple[float, float]:
     return ((min_lat + max_lat) / 2.0, _normalize_lon((min_lon + max_lon) / 2.0))
 
 
-def to_geojson_polygon(locator: LocatorLike) -> dict:
+def to_geojson_polygon(locator: LocatorLike | tuple[float, float]) -> dict:
     """
     Return a GeoJSON Polygon for the locator cell.
+    If input is a lat/lon point, returns a GeoJSON Point.
     """
-    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    is_point, bbox, latlon = _resolve_geom_input(locator)
+    if is_point:
+        lat, lon = latlon if latlon is not None else (0.0, 0.0)
+        return {"type": "Point", "coordinates": [lon, lat]}
+    min_lat, min_lon, max_lat, max_lon = bbox if bbox is not None else to_bbox(locator)
     ring = [
         [min_lon, min_lat],
         [max_lon, min_lat],
@@ -647,7 +676,7 @@ def to_geojson_polygon(locator: LocatorLike) -> dict:
     return {"type": "Polygon", "coordinates": [ring]}
 
 
-def to_geojson_feature(locator: LocatorLike, properties: dict | None = None) -> dict:
+def to_geojson_feature(locator: LocatorLike | tuple[float, float], properties: dict | None = None) -> dict:
     """
     Return a GeoJSON Feature for the locator cell.
     """
@@ -659,8 +688,8 @@ def to_geojson_feature(locator: LocatorLike, properties: dict | None = None) -> 
 
 
 def to_geojson_feature_collection(
-    locators: Sequence[LocatorLike],
-    properties_fn: Callable[[LocatorLike], dict] | None = None,
+    locators: Sequence[LocatorLike | tuple[float, float]],
+    properties_fn: Callable[[LocatorLike | tuple[float, float]], dict] | None = None,
 ) -> dict:
     """
     Return a GeoJSON FeatureCollection for locators.
@@ -672,20 +701,26 @@ def to_geojson_feature_collection(
     return {"type": "FeatureCollection", "features": features}
 
 
-def to_geojson_bbox(locator: LocatorLike) -> list[float]:
+def to_geojson_bbox(locator: LocatorLike | tuple[float, float]) -> list[float]:
     """
     Return GeoJSON bbox array [min_lon, min_lat, max_lon, max_lat].
     """
-    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    is_point, bbox, latlon = _resolve_geom_input(locator)
+    if is_point:
+        lat, lon = latlon if latlon is not None else (0.0, 0.0)
+        return [lon, lat, lon, lat]
+    min_lat, min_lon, max_lat, max_lon = bbox if bbox is not None else to_bbox(locator)
     return [min_lon, min_lat, max_lon, max_lat]
 
 
-def to_geojson_envelope(locator: LocatorLike) -> dict:
+def to_geojson_envelope(locator: LocatorLike | tuple[float, float]) -> dict:
     """
     Return a GeoJSON Polygon using the bbox envelope.
     """
     bbox = to_geojson_bbox(locator)
     min_lon, min_lat, max_lon, max_lat = bbox
+    if min_lon == max_lon and min_lat == max_lat:
+        return {"type": "Point", "coordinates": [min_lon, min_lat], "bbox": bbox}
     ring = [
         [min_lon, min_lat],
         [max_lon, min_lat],
@@ -695,11 +730,16 @@ def to_geojson_envelope(locator: LocatorLike) -> dict:
     ]
     return {"type": "Polygon", "coordinates": [ring], "bbox": bbox}
 
-def to_wkt(locator: LocatorLike) -> str:
+def to_wkt(locator: LocatorLike | tuple[float, float]) -> str:
     """
     Return a WKT Polygon string for the locator cell.
+    If input is a lat/lon point, returns a WKT POINT.
     """
-    min_lat, min_lon, max_lat, max_lon = to_bbox(locator)
+    is_point, bbox, latlon = _resolve_geom_input(locator)
+    if is_point:
+        lat, lon = latlon if latlon is not None else (0.0, 0.0)
+        return f"POINT({lon} {lat})"
+    min_lat, min_lon, max_lat, max_lon = bbox if bbox is not None else to_bbox(locator)
     ring = [
         (min_lon, min_lat),
         (max_lon, min_lat),

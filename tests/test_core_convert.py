@@ -160,6 +160,20 @@ def test_geojson_bbox_and_envelope(sample_valid_locators):
     assert env["type"] == "Polygon"
 
 
+def test_geojson_point_inputs():
+    point = (10.5, 20.25)
+    polygon = to_geojson_polygon(point)
+    assert polygon["type"] == "Point"
+    assert polygon["coordinates"] == [point[1], point[0]]
+    bbox = to_geojson_bbox(point)
+    assert bbox == [point[1], point[0], point[1], point[0]]
+    env = to_geojson_envelope(point)
+    assert env["type"] == "Point"
+    assert env["bbox"] == bbox
+    feature = to_geojson_feature(point)
+    assert feature["geometry"]["type"] == "Point"
+
+
 def test_wkt_matches_bbox(sample_valid_locators):
     loc = sample_valid_locators(lengths=[6], seed=414)[0]
     min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
@@ -169,6 +183,11 @@ def test_wkt_matches_bbox(sample_valid_locators):
         f"{max_lon} {max_lat}, {min_lon} {max_lat}, {min_lon} {min_lat}))"
     )
     assert wkt == expected
+
+
+def test_wkt_point_input():
+    point = (10.5, 20.25)
+    assert to_wkt(point) == "POINT(20.25 10.5)"
 
 
 def test_contains_point_and_intersects_bbox(sample_valid_locators):
