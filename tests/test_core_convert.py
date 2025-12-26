@@ -66,6 +66,26 @@ def test_bbox_contains_center(valid_locators):
         assert min_lon <= lon <= max_lon
 
 
+def test_from_latlon_north_pole_bbox():
+    loc = from_latlon(90.0, 0.0, precision=6)
+    min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
+    assert max_lat == pytest.approx(90.0)
+    lat, lon = to_center_latlon(loc)
+    assert min_lat <= lat <= max_lat
+    assert min_lon <= lon <= max_lon
+    assert contains_point(loc, 90.0, 0.0)
+
+
+def test_from_latlon_south_pole_bbox():
+    loc = from_latlon(-90.0, 0.0, precision=6)
+    min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
+    assert min_lat == pytest.approx(-90.0)
+    lat, lon = to_center_latlon(loc)
+    assert min_lat <= lat <= max_lat
+    assert min_lon <= lon <= max_lon
+    assert contains_point(loc, -90.0, 0.0)
+
+
 def test_bbox_split_none_for_standard_cells(sample_valid_locators):
     loc = sample_valid_locators(lengths=[4], seed=409)[0]
     assert to_bbox_split(loc) is None
