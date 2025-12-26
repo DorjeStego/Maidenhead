@@ -62,6 +62,7 @@ Bulk and vectorized APIs:
 
 - `maidenhead.bulk` provides list-based helpers like `from_latlon_many`, `to_bbox_many`.
 - `maidenhead.vector` provides numpy/pandas-aware helpers (Series in -> Series out).
+- Both bulk and vector helpers require equal-length inputs for paired operations and raise `ValueError` on mismatch.
 
 Exceptions:
 
