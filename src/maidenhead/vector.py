@@ -5,7 +5,39 @@ from typing import Any, Iterable, Iterator, List, Optional, Sequence, Tuple, Uni
 
 from . import constants as C
 from .mh_types import GridSquare, LocatorLike, validate_precision
-from .core import from_latlon, to_bbox, to_center_latlon
+from .core import (
+    azimuth,
+    cell_size,
+    cell_size_deg,
+    cell_size_km,
+    from_latlon,
+    normalize,
+    parse,
+    to_bbox,
+    to_center_latlon,
+    to_geojson_bbox,
+    to_geojson_envelope,
+    to_geojson_feature,
+    to_geojson_feature_collection,
+    to_geojson_polygon,
+    neighbors,
+    adjacent,
+    corners,
+    parent,
+    children,
+    to_utm_zone,
+    intersects_bbox,
+    intersects_polygon,
+    area_km2,
+    diagonal_km,
+    to_wkt,
+    contains_point,
+    contains,
+    split_bbox_list,
+    precision_of,
+    initial_bearing,
+)
+from .errors import InvalidLocatorError, PrecisionError
 
 
 # ----------------------------
@@ -275,6 +307,72 @@ def from_latlon_many(
     ]
 
 
+def normalize_many(
+    locators: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    """
+    Vectorized locator normalization.
+
+    return_type:
+      - "auto": pandas Series in -> Series out, else list[str]
+      - "list": always list[str]
+      - "pandas": pandas Series (requires pandas)
+    """
+    def _normalize_series(series):
+        import pandas as pd  # type: ignore
+
+        s = series.astype(str).str.strip()
+        if (s == "").any():
+            raise InvalidLocatorError("locator is empty")
+
+        length = s.str.len()
+        invalid_len = (length < 2) | (length > 10) | (length % 2 != 0)
+        if invalid_len.any():
+            raise PrecisionError("precision must be even and between 2 and 10 characters")
+
+        out = pd.Series([""] * len(s), index=s.index, name=series.name)
+
+        def _apply_pair(pair_index: int, kind: str, pattern: str, case: str | None) -> None:
+            start = (pair_index - 1) * 2
+            end = pair_index * 2
+            mask = length >= end
+            if not mask.any():
+                return
+            part = s.str.slice(start, end)
+            if case == "upper":
+                part = part.str.upper()
+            elif case == "lower":
+                part = part.str.lower()
+            valid = part.str.fullmatch(pattern)
+            bad = mask & ~valid
+            if bad.any():
+                raise InvalidLocatorError(f"invalid {kind} in locator")
+            out[:] = out + part.where(mask, "")
+
+        _apply_pair(1, "field letters", r"[A-R]{2}", "upper")
+        _apply_pair(2, "digits", r"[0-9]{2}", None)
+        _apply_pair(3, "letters", r"[a-x]{2}", "lower")
+        _apply_pair(4, "digits", r"[0-9]{2}", None)
+        _apply_pair(5, "letters", r"[a-x]{2}", "lower")
+
+        return out
+
+    if return_type == "auto" and _is_pandas_series(locators):
+        return _normalize_series(locators)
+
+    if return_type == "pandas":
+        try:
+            import pandas as pd  # type: ignore
+        except Exception as e:
+            raise ImportError("return_type='pandas' requires pandas") from e
+        series = locators if _is_pandas_series(locators) else pd.Series(list(locators))
+        return _normalize_series(series)
+
+    return [normalize(str(x)) for x in locators]
+
+
 def to_center_latlon_many(
     locators: Any,
     *,
@@ -442,3 +540,443 @@ def to_bbox_many(
         return bbs
 
     raise ValueError(f"Unknown return_type: {return_type!r}")
+
+
+def _geojson_series_out(locators: Any, out: list[Any], *, name: str | None) -> Any:
+    import pandas as pd  # type: ignore
+    if _is_pandas_series(locators):
+        return pd.Series(out, index=locators.index, name=name)
+    return pd.Series(out, name=name)
+
+
+def to_geojson_polygon_many(
+    locators: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [to_geojson_polygon(loc) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="geojson_polygon")
+    return out
+
+
+def to_geojson_feature_many(
+    locators: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [to_geojson_feature(loc) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="geojson_feature")
+    return out
+
+
+def to_geojson_feature_collection_many(
+    locators: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    if return_type not in ("auto", "list"):
+        raise ValueError("return_type must be 'auto' or 'list'")
+    return to_geojson_feature_collection(locators)
+
+
+def to_geojson_bbox_many(
+    locators: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [to_geojson_bbox(loc) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="geojson_bbox")
+    return out
+
+
+def to_geojson_envelope_many(
+    locators: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [to_geojson_envelope(loc) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="geojson_envelope")
+    return out
+
+
+def cell_size_deg_many(
+    locators: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [cell_size_deg(loc) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "numpy":
+        try:
+            import numpy as np  # type: ignore
+        except Exception as e:
+            raise ImportError("return_type='numpy' requires numpy") from e
+        return np.asarray(out, dtype=float)
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="cell_size_deg")
+    return out
+
+
+def cell_size_km_many(
+    locators: Any,
+    *,
+    at_lat: float | None = None,
+    method: str = "spherical",
+    return_type: str = "auto",
+) -> Any:
+    out = [cell_size_km(loc, at_lat=at_lat, method=method) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "numpy":
+        try:
+            import numpy as np  # type: ignore
+        except Exception as e:
+            raise ImportError("return_type='numpy' requires numpy") from e
+        return np.asarray(out, dtype=float)
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="cell_size_km")
+    return out
+
+
+def cell_size_many(
+    locators: Any,
+    *,
+    unit: str = "deg",
+    at_lat: float | None = None,
+    method: str = "spherical",
+    return_type: str = "auto",
+) -> Any:
+    if unit not in ("deg", "km", "miles"):
+        raise ValueError(f"Unknown unit: {unit!r}")
+    if unit == "deg":
+        out = [cell_size(loc, unit="deg") for loc in locators]
+    else:
+        out = [cell_size_km(loc, at_lat=at_lat, method=method) for loc in locators]
+    if unit == "miles":
+        miles_per_km = 0.621371
+        out = [(w * miles_per_km, h * miles_per_km) for w, h in out]
+    if return_type == "list":
+        return out
+    if return_type == "numpy":
+        try:
+            import numpy as np  # type: ignore
+        except Exception as e:
+            raise ImportError("return_type='numpy' requires numpy") from e
+        return np.asarray(out, dtype=float)
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="cell_size")
+    return out
+
+
+def corners_many(
+    locators: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [corners(loc) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="corners")
+    return out
+
+
+def azimuth_many(
+    points_a: Any,
+    points_b: Any,
+    *,
+    range_mode: bool = False,
+    return_type: str = "auto",
+) -> Any:
+    if _is_pandas_series(points_a):
+        a_list = list(points_a)
+    else:
+        a_list = list(points_a)
+    if _is_pandas_series(points_b):
+        b_list = list(points_b)
+    else:
+        b_list = list(points_b)
+    if len(a_list) != len(b_list):
+        raise ValueError("points_a and points_b must have the same length")
+    out = [azimuth(a, b, range_mode=range_mode) for a, b in zip(a_list, b_list)]
+    if return_type == "list":
+        return out
+    if return_type == "numpy":
+        try:
+            import numpy as np  # type: ignore
+        except Exception as e:
+            raise ImportError("return_type='numpy' requires numpy") from e
+        return np.asarray(out, dtype=float)
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(points_a)):
+        return _geojson_series_out(points_a, out, name="azimuth")
+    return out
+
+
+def parent_many(
+    locators: Any,
+    *,
+    precision: int | None = None,
+    return_type: str = "auto",
+) -> Any:
+    if precision is None:
+        out = [parent(loc).locator for loc in locators]
+    else:
+        out = [parent(loc, precision=precision).locator for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="parent")
+    return out
+
+
+def children_many(
+    locators: Any,
+    *,
+    precision: int | None = None,
+    limit: int | None = None,
+    return_type: str = "auto",
+) -> Any:
+    out = []
+    for loc in locators:
+        if precision is None:
+            precision_value = parse(loc).precision + 2
+        else:
+            precision_value = precision
+        items = list(children(loc, precision=precision_value))
+        if limit is not None:
+            items = items[:limit]
+        out.append([g.locator for g in items])
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="children")
+    return out
+
+
+def to_utm_zone_many(
+    locators: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [to_utm_zone(loc) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="utm_zone")
+    return out
+
+
+def intersects_bbox_many(
+    locators: Any,
+    bboxes: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [intersects_bbox(loc, bbox) for loc, bbox in zip(locators, bboxes)]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="intersects_bbox")
+    return out
+
+
+def intersects_polygon_many(
+    locators: Any,
+    polygons: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [intersects_polygon(loc, poly) for loc, poly in zip(locators, polygons)]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="intersects_polygon")
+    return out
+
+
+def area_km2_many(
+    locators: Any,
+    *,
+    method: str = "spherical",
+    return_type: str = "auto",
+) -> Any:
+    out = [area_km2(loc, method=method) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "numpy":
+        try:
+            import numpy as np  # type: ignore
+        except Exception as e:
+            raise ImportError("return_type='numpy' requires numpy") from e
+        return np.asarray(out, dtype=float)
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="area_km2")
+    return out
+
+
+def diagonal_km_many(
+    locators: Any,
+    *,
+    method: str = "spherical",
+    return_type: str = "auto",
+) -> Any:
+    out = [diagonal_km(loc, method=method) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "numpy":
+        try:
+            import numpy as np  # type: ignore
+        except Exception as e:
+            raise ImportError("return_type='numpy' requires numpy") from e
+        return np.asarray(out, dtype=float)
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="diagonal_km")
+    return out
+
+
+def to_wkt_many(
+    locators: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [to_wkt(loc) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="wkt")
+    return out
+
+
+def contains_point_many(
+    locators: Any,
+    lats: Any,
+    lons: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [contains_point(loc, lat, lon) for loc, lat, lon in zip(locators, lats, lons)]
+    if return_type == "list":
+        return out
+    if return_type == "numpy":
+        try:
+            import numpy as np  # type: ignore
+        except Exception as e:
+            raise ImportError("return_type='numpy' requires numpy") from e
+        return np.asarray(out, dtype=bool)
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="contains_point")
+    return out
+
+
+def contains_many(
+    outers: Any,
+    inners: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [contains(outer, inner) for outer, inner in zip(outers, inners)]
+    if return_type == "list":
+        return out
+    if return_type == "numpy":
+        try:
+            import numpy as np  # type: ignore
+        except Exception as e:
+            raise ImportError("return_type='numpy' requires numpy") from e
+        return np.asarray(out, dtype=bool)
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(outers)):
+        return _geojson_series_out(outers, out, name="contains")
+    return out
+
+
+def split_bbox_many(
+    bboxes: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [split_bbox_list(bbox) for bbox in bboxes]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(bboxes)):
+        return _geojson_series_out(bboxes, out, name="split_bbox")
+    return out
+
+
+def precision_many(
+    locators: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [precision_of(loc) for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "numpy":
+        try:
+            import numpy as np  # type: ignore
+        except Exception as e:
+            raise ImportError("return_type='numpy' requires numpy") from e
+        return np.asarray(out, dtype=int)
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="precision")
+    return out
+
+
+def initial_bearing_many(
+    locators_a: Any,
+    locators_b: Any,
+    *,
+    return_type: str = "auto",
+) -> Any:
+    out = [initial_bearing(a, b) for a, b in zip(locators_a, locators_b)]
+    if return_type == "list":
+        return out
+    if return_type == "numpy":
+        try:
+            import numpy as np  # type: ignore
+        except Exception as e:
+            raise ImportError("return_type='numpy' requires numpy") from e
+        return np.asarray(out, dtype=float)
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators_a)):
+        return _geojson_series_out(locators_a, out, name="initial_bearing")
+    return out
+
+
+def neighbors_many(
+    locators: Any,
+    *,
+    ring: int = 1,
+    diagonals: bool = True,
+    return_type: str = "auto",
+) -> Any:
+    out = [[g.locator for g in neighbors(loc, ring=ring, diagonals=diagonals)] for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="neighbors")
+    return out
+
+
+def adjacent_many(
+    locators: Any,
+    *,
+    diagonals: bool = True,
+    return_type: str = "auto",
+) -> Any:
+    out = [{k: v.locator for k, v in adjacent(loc, diagonals=diagonals).items()} for loc in locators]
+    if return_type == "list":
+        return out
+    if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
+        return _geojson_series_out(locators, out, name="adjacent")
+    return out

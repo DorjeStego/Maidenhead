@@ -13,7 +13,7 @@ classifiers = [
   "Programming Language :: Python :: 3",
 ]
 urls = { "Repository" = "https://github.com/DorjeStego/Maidenhead" }
-dependencies = ["orjson"]
+dependencies = ["orjson", "pandas"]
 
 [project.scripts]
 mh = "maidenhead.cli:main"

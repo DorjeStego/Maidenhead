@@ -688,6 +688,104 @@ def test_cli_bulk_adjacent(monkeypatch, capsys):
     assert ":" in lines[0]
 
 
+def test_cli_bulk_corners(monkeypatch, capsys):
+    data = "IO83ri\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["bulk", "corners", "--stdin", "--digits", "4"])
+    captured = capsys.readouterr()
+    assert code == 0
+    lines = captured.out.strip().splitlines()
+    assert len(lines) == 1
+    assert lines[0].count(";") == 3
+
+
+def test_cli_bulk_precision(monkeypatch, capsys):
+    data = "IO83ri\nIO83\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["bulk", "precision", "--stdin"])
+    captured = capsys.readouterr()
+    assert code == 0
+    lines = captured.out.strip().splitlines()
+    assert lines == ["6", "4"]
+
+
+def test_cli_bulk_parent(monkeypatch, capsys):
+    data = "IO83ri\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["bulk", "parent", "--stdin"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip() == "IO83"
+
+
+def test_cli_bulk_children(monkeypatch, capsys):
+    data = "IO83\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["bulk", "children", "--stdin", "--limit", "3"])
+    captured = capsys.readouterr()
+    assert code == 0
+    lines = captured.out.strip().split()
+    assert len(lines) == 3
+
+
+def test_cli_bulk_size(monkeypatch, capsys):
+    data = "IO83ri\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["bulk", "size", "--stdin", "--unit", "km"])
+    captured = capsys.readouterr()
+    assert code == 0
+    parts = captured.out.strip().split()
+    assert len(parts) == 2
+
+
+def test_cli_bulk_area(monkeypatch, capsys):
+    data = "IO83ri\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["bulk", "area", "--stdin"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert float(captured.out.strip()) > 0.0
+
+
+def test_cli_bulk_diagonal(monkeypatch, capsys):
+    data = "IO83ri\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["bulk", "diagonal", "--stdin"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert float(captured.out.strip()) > 0.0
+
+
+def test_cli_bulk_utm(monkeypatch, capsys):
+    data = "IO83ri\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["bulk", "utm", "--stdin"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.out.strip()
+
+
+def test_cli_bulk_geojson_featurecollection(monkeypatch, capsys):
+    if orjson is None:
+        pytest.skip("orjson not installed")
+    data = "IO83ri\nJO22db\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["bulk", "geojson", "--stdin", "--geojson-format", "featurecollection"])
+    captured = capsys.readouterr()
+    assert code == 0
+    out = orjson.loads(captured.out.strip())
+    assert out["type"] == "FeatureCollection"
+
+
+def test_cli_bulk_bbox_split(monkeypatch, capsys):
+    data = "0 170 10 -170\n"
+    monkeypatch.setattr(sys, "stdin", StringIO(data))
+    code = main(["bulk", "bbox-split", "--stdin"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert ";" in captured.out.strip()
+
+
 def test_cli_bbox_split_command(capsys):
     code = main(["bbox-split", "0", "170", "10", "-170", "--csv", "--digits", "4"])
     captured = capsys.readouterr()
