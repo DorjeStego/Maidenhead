@@ -466,6 +466,12 @@ def test_contains_sibling_false(valid_locators):
     assert not contains(outer, other)
 
 
+def test_contains_dateline_wrap(locator_cases):
+    outer = next(loc for loc in locator_cases["valid_locators"]["2"]["global"] if loc == "RR")
+    inner = next(loc for loc in locator_cases["valid_locators"]["4"]["global"] if loc == "RR00")
+    assert contains(outer, inner)
+
+
 def test_neighbors_same_precision(valid_locators):
     rng = random.Random(9)
     loc = rng.choice([l for l in valid_locators if len(l) >= 4])

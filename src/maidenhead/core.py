@@ -1219,11 +1219,26 @@ def contains(outer: LocatorLike, inner: LocatorLike) -> bool:
     """
     Return True if inner's cell is fully within outer's cell.
     """
-    min_lat_o, min_lon_o, max_lat_o, max_lon_o = to_bbox(outer)
-    min_lat_i, min_lon_i, max_lat_i, max_lon_i = to_bbox(inner)
-    return (
-        min_lat_o <= min_lat_i
-        and max_lat_o >= max_lat_i
-        and min_lon_o <= min_lon_i
-        and max_lon_o >= max_lon_i
-    )
+    def _parts(bbox: tuple[float, float, float, float]) -> list[tuple[float, float, float, float]]:
+        parts = split_bbox_list(bbox)
+        return parts if parts else [bbox]
+
+    def _contains_bbox(
+        outer_bbox: tuple[float, float, float, float],
+        inner_bbox: tuple[float, float, float, float],
+    ) -> bool:
+        min_lat_o, min_lon_o, max_lat_o, max_lon_o = outer_bbox
+        min_lat_i, min_lon_i, max_lat_i, max_lon_i = inner_bbox
+        return (
+            min_lat_o <= min_lat_i
+            and max_lat_o >= max_lat_i
+            and min_lon_o <= min_lon_i
+            and max_lon_o >= max_lon_i
+        )
+
+    outer_parts = _parts(to_bbox(outer))
+    inner_parts = _parts(to_bbox(inner))
+    for inner_part in inner_parts:
+        if not any(_contains_bbox(outer_part, inner_part) for outer_part in outer_parts):
+            return False
+    return True
