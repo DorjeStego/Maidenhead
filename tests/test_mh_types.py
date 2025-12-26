@@ -25,14 +25,14 @@ def test_gridsquare_ordering():
     assert sorted([c, b, a]) == [a, b, c]
 
 
-def test_gridsquare_size_km_lat(valid_locators):
-    loc = valid_locators[0]
+def test_gridsquare_size_km_lat(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=201)[0]
     g = GridSquare(normalize(loc))
     assert g.size_km_lat == pytest.approx(cell_size(g, unit="km")[1])
 
 
-def test_gridsquare_size_km_lon_at(valid_locators):
-    loc = valid_locators[0]
+def test_gridsquare_size_km_lon_at(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=202)[0]
     g = GridSquare(normalize(loc))
     lon_deg = cell_size(g, unit="deg")[0]
     lat = 45.0

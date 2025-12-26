@@ -17,7 +17,7 @@ except Exception:  # pragma: no cover - optional in local env
     orjson = None
 
 from maidenhead import normalize, step
-from maidenhead.core import to_bbox, to_center_latlon, to_geojson_bbox
+from maidenhead.core import to_bbox, to_center_latlon, to_geojson_bbox, to_utm_zone
 from maidenhead.geo import bearing_deg, distance_km
 from maidenhead.cli import main
 
@@ -100,8 +100,8 @@ def test_cli_golden_fixtures(capsys):
         assert out == item["output"]
 
 
-def test_cli_center_csv(capsys, valid_locators):
-    loc = valid_locators[0]
+def test_cli_center_csv(capsys, sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=101)[0]
     code = main(["center", loc, "--digits", "4", "--csv"])
     captured = capsys.readouterr()
     assert code == 0
@@ -111,8 +111,8 @@ def test_cli_center_csv(capsys, valid_locators):
     assert out_lon == pytest.approx(round(lon, 4))
 
 
-def test_cli_bbox_csv(capsys, valid_locators):
-    loc = valid_locators[0]
+def test_cli_bbox_csv(capsys, sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=102)[0]
     code = main(["bbox", loc, "--digits", "4", "--csv"])
     captured = capsys.readouterr()
     assert code == 0
@@ -163,16 +163,16 @@ def test_cli_from_latlon_precision_10(capsys):
     assert len(captured.out.strip()) == 10
 
 
-def test_cli_parts_output(capsys, valid_locators):
-    loc = valid_locators[0]
+def test_cli_parts_output(capsys, sample_valid_locators):
+    loc = sample_valid_locators(lengths=[8], seed=103)[0]
     code = main(["parts", loc])
     captured = capsys.readouterr()
     assert code == 0
     assert "field=" in captured.out
 
 
-def test_cli_size_output(capsys, valid_locators):
-    loc = valid_locators[0]
+def test_cli_size_output(capsys, sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=104)[0]
     code = main(["size", loc, "--unit", "km", "--csv"])
     captured = capsys.readouterr()
     assert code == 0
@@ -182,8 +182,8 @@ def test_cli_size_output(capsys, valid_locators):
     assert out[1] > 0.0
 
 
-def test_cli_step_output(capsys, valid_locators):
-    loc = valid_locators[0]
+def test_cli_step_output(capsys, sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=105)[0]
     code = main(["step", loc, "--dlat-cells", "1"])
     captured = capsys.readouterr()
     assert code == 0
@@ -232,8 +232,8 @@ def test_cli_geojson_batch_requires_featurecollection(monkeypatch, capsys):
     assert "error:" in captured.err
 
 
-def test_cli_center_batch_csv_file(tmp_path, capsys, valid_locators):
-    locs = valid_locators[:2]
+def test_cli_center_batch_csv_file(tmp_path, capsys, sample_valid_locators):
+    locs = sample_valid_locators(lengths=[4, 6], seed=113, count=1)
     file_path = tmp_path / "locs.txt"
     file_path.write_text("\n".join(locs))
     code = main(["center", "--file", str(file_path), "--format", "csv", "--digits", "4"])
@@ -255,16 +255,16 @@ def test_cli_from_latlon_batch_json_stdin(monkeypatch, capsys):
     assert orjson.loads(captured.out.strip()) == ["IO83ri", "JO22db"]
 
 
-def test_cli_format_truncate(capsys, valid_locators):
-    loc = valid_locators[0]
+def test_cli_format_truncate(capsys, sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=106)[0]
     code = main(["format", loc, "--precision", "2", "--mode", "truncate"])
     captured = capsys.readouterr()
     assert code == 0
     assert len(captured.out.strip()) == 2
 
 
-def test_cli_size_at_lat(capsys, valid_locators):
-    loc = valid_locators[0]
+def test_cli_size_at_lat(capsys, sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=107)[0]
     code = main(["size", loc, "--unit", "km", "--at-lat", "10"])
     captured = capsys.readouterr()
     assert code == 0
@@ -274,8 +274,8 @@ def test_cli_size_at_lat(capsys, valid_locators):
     assert out[1] > 0.0
 
 
-def test_cli_area_diagonal(capsys, valid_locators):
-    loc = valid_locators[0]
+def test_cli_area_diagonal(capsys, sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=108)[0]
     code = main(["area", loc])
     captured = capsys.readouterr()
     assert code == 0
@@ -300,12 +300,12 @@ def test_cli_distance_space_separated(capsys):
     assert out == pytest.approx(expected)
 
 
-def test_cli_utm(capsys, valid_locators):
-    loc = valid_locators[0]
+def test_cli_utm(capsys, sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=109)[0]
     code = main(["utm", loc])
     captured = capsys.readouterr()
     assert code == 0
-    assert captured.out.strip() == "29N"
+    assert captured.out.strip() == to_utm_zone(loc)
 
 
 def test_cli_corners(capsys):
@@ -500,10 +500,10 @@ def test_cli_intersects_polygon(capsys):
     assert captured.out.strip() == "true"
 
 
-def test_cli_geojson_feature(capsys, valid_locators):
+def test_cli_geojson_feature(capsys, sample_valid_locators):
     if orjson is None:
         pytest.skip("orjson not installed")
-    loc = valid_locators[0]
+    loc = sample_valid_locators(lengths=[6], seed=110)[0]
     code = main(["geojson", loc])
     captured = capsys.readouterr()
     assert code == 0
@@ -521,10 +521,10 @@ def test_cli_geojson_bbox_format(capsys):
     assert out == to_geojson_bbox("IO83ri")
 
 
-def test_cli_geojson_featurecollection_stdin(monkeypatch, capsys, valid_locators):
+def test_cli_geojson_featurecollection_stdin(monkeypatch, capsys, sample_valid_locators):
     if orjson is None:
         pytest.skip("orjson not installed")
-    data = "\n".join(valid_locators[:2]) + "\n"
+    data = "\n".join(sample_valid_locators(lengths=[4, 6], seed=114, count=1)) + "\n"
     monkeypatch.setattr(sys, "stdin", StringIO(data))
     code = main(["geojson", "--stdin", "--geojson-format", "featurecollection"])
     captured = capsys.readouterr()
@@ -816,16 +816,16 @@ def test_cli_validate_valid_lengths(valid_locators):
         assert code == 0
 
 
-def test_cli_validate_print_valid(capsys, valid_locators):
-    loc = valid_locators[0]
+def test_cli_validate_print_valid(capsys, sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=111)[0]
     code = main(["validate", loc, "--print"])
     captured = capsys.readouterr()
     assert code == 0
     assert captured.out.strip() == "valid"
 
 
-def test_cli_validate_print_invalid(capsys, invalid_locators):
-    loc = invalid_locators[0]
+def test_cli_validate_print_invalid(capsys, sample_invalid_locators):
+    loc = sample_invalid_locators(seed=112)[0]
     code = main(["validate", loc, "--print"])
     captured = capsys.readouterr()
     assert code == 2

@@ -6,13 +6,6 @@ from maidenhead import GridSquare, is_valid, normalize, parse, precision_of
 from maidenhead.errors import InvalidLocatorError, PrecisionError
 
 
-def _pick_by_length(valid_locators, length):
-    for loc in valid_locators:
-        if len(loc) == length:
-            return loc
-    raise AssertionError(f"no locator with length {length}")
-
-
 def test_normalize_casing(valid_locators):
     rng = random.Random(6)
     loc = rng.choice(valid_locators)
@@ -35,28 +28,33 @@ def test_valid_locators_are_in_field_range(valid_locators):
         assert loc[1] in allowed
 
 
-def test_parse_returns_gridsquare(valid_locators):
-    loc = _pick_by_length(valid_locators, 6)
+def test_parse_returns_gridsquare(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=301)[0]
     gs = parse(loc)
     assert isinstance(gs, GridSquare)
     assert gs.locator == normalize(loc)
-    loc2 = _pick_by_length(valid_locators, 2)
+    loc2 = sample_valid_locators(lengths=[2], seed=302)[0]
     gs2 = parse(loc2)
     assert gs2.locator == normalize(loc2)
-    loc3 = _pick_by_length(valid_locators, 8)
+    loc3 = sample_valid_locators(lengths=[8], seed=303)[0]
     gs3 = parse(loc3)
     assert gs3.locator == normalize(loc3)
+    loc4 = sample_valid_locators(lengths=[10], seed=304)[0]
+    gs4 = parse(loc4)
+    assert gs4.locator == normalize(loc4)
 
 
-def test_precision_of(valid_locators):
-    loc2 = _pick_by_length(valid_locators, 2)
-    loc4 = _pick_by_length(valid_locators, 4)
-    loc6 = _pick_by_length(valid_locators, 6)
-    loc8 = _pick_by_length(valid_locators, 8)
+def test_precision_of(sample_valid_locators):
+    loc2 = sample_valid_locators(lengths=[2], seed=305)[0]
+    loc4 = sample_valid_locators(lengths=[4], seed=306)[0]
+    loc6 = sample_valid_locators(lengths=[6], seed=307)[0]
+    loc8 = sample_valid_locators(lengths=[8], seed=308)[0]
+    loc10 = sample_valid_locators(lengths=[10], seed=309)[0]
     assert precision_of(loc4) == 4
     assert precision_of(parse(loc6)) == 6
     assert precision_of(loc2) == 2
     assert precision_of(loc8) == 8
+    assert precision_of(loc10) == 10
 
 
 def test_precision_of_rejects_too_long():
