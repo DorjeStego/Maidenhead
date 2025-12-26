@@ -84,6 +84,7 @@
       ],
       "global": [
         "IO83",
+        "RR00",
         "AA00",
         "RR99",
         "JJ05",
@@ -141,6 +142,7 @@
       ],
       "global": [
         "IO83ri",
+        "RR00aa",
         "AA00aa",
         "RR99xx",
         "JJ05ae",
@@ -197,6 +199,7 @@
       ],
       "global": [
         "IO83ri12",
+        "RR00aa00",
         "AA00aa00",
         "RR99xx99",
         "JJ05ae78",
@@ -253,6 +256,7 @@
       ],
       "global": [
         "IO83ri12oo",
+        "RR00aa00aa",
         "AA00aa00pp",
         "RR99xx99qq",
         "JJ05ae78rr",
