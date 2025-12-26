@@ -8,7 +8,6 @@ from .core import (
     azimuth,
     cell_size,
     cell_size_deg,
-    cell_size_km,
     children,
     contains,
     contains_point,
@@ -119,7 +118,7 @@ def cell_size_km_many(
     widths: list[float] = []
     heights: list[float] = []
     for loc in locators:
-        width, height = cell_size_km(loc, at_lat=at_lat, method=method)
+        width, height = cell_size(loc, unit="km", at_lat=at_lat, method=method)
         widths.append(width)
         heights.append(height)
     return (widths, heights)

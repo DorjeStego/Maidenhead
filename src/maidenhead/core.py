@@ -823,6 +823,8 @@ def cell_size(
     locator_or_precision: LocatorLike | int,
     *,
     unit: Literal["deg", "km", "miles"] = "deg",
+    at_lat: float | None = None,
+    method: Literal["spherical", "geodesic"] = "spherical",
 ) -> tuple[float, float]:
     """
     Return (width, height) of a cell for the given locator or precision.
@@ -842,11 +844,16 @@ def cell_size(
     if unit == "deg":
         return (step.lon_step_deg, step.lat_step_deg)
 
+    if method not in ("spherical", "geodesic"):
+        raise ValueError(f"Unknown method: {method!r}")
+    if at_lat is None:
+        at_lat = to_center_latlon(locator_or_precision)[0]
     lat, lon = to_center_latlon(locator_or_precision)
     half_lon = step.lon_step_deg / 2.0
     half_lat = step.lat_step_deg / 2.0
-    width_km = distance_km((lat, lon - half_lon), (lat, lon + half_lon))
-    height_km = distance_km((lat - half_lat, lon), (lat + half_lat, lon))
+    method_km = "geodesic" if method == "geodesic" else "haversine"
+    width_km = distance_km((at_lat, lon - half_lon), (at_lat, lon + half_lon), method=method_km)
+    height_km = distance_km((lat - half_lat, lon), (lat + half_lat, lon), method=method_km)
 
     if unit == "km":
         return (width_km, height_km)
@@ -860,36 +867,6 @@ def cell_size_deg(locator: LocatorLike) -> tuple[float, float]:
     """Return (lon_deg, lat_deg) for the locator cell."""
     return cell_size(locator, unit="deg")
 
-
-def cell_size_km(
-    locator: LocatorLike,
-    *,
-    at_lat: float | None = None,
-    method: Literal["spherical", "geodesic"] = "spherical",
-) -> tuple[float, float]:
-    """
-    Return (width_km, height_km) for a locator cell.
-
-    If at_lat is provided, width is computed along that latitude.
-    """
-    if method not in ("spherical", "geodesic"):
-        raise ValueError(f"Unknown method: {method!r}")
-    if at_lat is None and method == "spherical":
-        return cell_size(locator, unit="km")
-
-    lon_deg, lat_deg = cell_size_deg(locator)
-    if at_lat is None:
-        at_lat = to_center_latlon(locator)[0]
-
-    half_lon = lon_deg / 2.0
-    half_lat = lat_deg / 2.0
-    lat, lon = to_center_latlon(locator)
-    method_km = "geodesic" if method == "geodesic" else "haversine"
-    width_km = distance_km((at_lat, lon - half_lon), (at_lat, lon + half_lon), method=method_km)
-    height_km = distance_km((lat - half_lat, lon), (lat + half_lat, lon), method=method_km)
-    return (width_km, height_km)
-
-
 def area_km2(
     locator: LocatorLike,
     *,
@@ -899,7 +876,7 @@ def area_km2(
     Return approximate area in square kilometers.
     """
     if method == "spherical":
-        width_km, height_km = cell_size_km(locator)
+        width_km, height_km = cell_size(locator, unit="km")
         return width_km * height_km
     if method == "geodesic":
         try:
