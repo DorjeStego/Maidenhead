@@ -15,6 +15,10 @@ classifiers = [
 urls = { "Repository" = "https://github.com/DorjeStego/Maidenhead" }
 dependencies = ["orjson", "pandas"]
 
+[project.optional-dependencies]
+geo = ["geographiclib"]
+vector = ["numpy"]
+
 [project.scripts]
 mh = "maidenhead.cli:main"
 

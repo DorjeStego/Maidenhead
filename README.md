@@ -10,7 +10,12 @@ Planned tag: `v1.0.0rc1`.
 
 ### 1.0.0rc1
 
-- Release candidate for 1.0 with expanded API coverage, bulk/vector helpers, and CLI parity.
+- Release candidate for 1.0 with expanded and stabilized API surface.
+- Adds comprehensive bulk and vectorized helpers (list, numpy, pandas).
+- Adds CLI parity for new API features, plus improved help output.
+- Adds GeoJSON/WKT support for locator and lat/lon inputs, including mixed inputs.
+- Improves antimeridian handling and adds polar-edge test coverage.
+- Updates README with full API/CLI coverage, output shapes, and 1.0 checklist items.
 
 ## Install
 
