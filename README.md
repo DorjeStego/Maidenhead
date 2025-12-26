@@ -72,6 +72,57 @@ Exceptions:
 
 - `InvalidLocatorError`, `PrecisionError`, `OutOfRangeError` surface validation failures.
 
+Additional exported helpers:
+
+Core:
+
+- `MaidenheadError`: base exception for library errors. Example: `except MaidenheadError: ...`
+- `parse`: parse a locator into a `GridSquare`. Example: `parse("IO83ri").precision`
+- `is_valid`: boolean validation. Example: `is_valid("IO83")`
+- `normalize_many`: normalize a list of locators. Example: `normalize_many(["io83ri", "fn31pr"])`
+- `to_bbox_split`: split a locator bbox across the dateline. Example: `to_bbox_split("RR00")`
+
+Cell metrics:
+
+- `cell_size`: cell size with units. Example: `cell_size("IO83ri", unit="km", at_lat=53.0)`
+- `cell_size_deg`: cell size in degrees. Example: `cell_size_deg("IO83ri")`
+- `area_km2`: area estimate in km^2. Example: `area_km2("IO83ri")`
+- `diagonal_km`: diagonal length in km. Example: `diagonal_km("IO83ri")`
+
+Coverage:
+
+- `cover_circle`: cells intersecting a circle. Example: `cover_circle("IO83rj", 5, 6)`
+- `cover_line`: cells intersecting a path. Example: `cover_line("IO83rj", "FN31pr", 4)`
+
+Bulk list helpers (list in, list out):
+
+- `cell_size_many`: `cell_size_many(["IO83ri", "FN31pr"], unit="km")`
+- `cell_size_deg_many`: `cell_size_deg_many(["IO83ri", "FN31pr"])`
+- `cell_size_km_many`: `cell_size_km_many(["IO83ri", "FN31pr"])`
+- `area_km2_many`: `area_km2_many(["IO83ri", "FN31pr"])`
+- `diagonal_km_many`: `diagonal_km_many(["IO83ri", "FN31pr"])`
+- `parent_many`: `parent_many(["IO83ri", "FN31pr"], precision=4)`
+- `children_many`: `children_many(["IO83ri"], precision=8)`
+- `to_wkt_many`: `to_wkt_many(["IO83ri", "FN31pr"])`
+- `azimuth_many`: `azimuth_many(["IO83ri"], ["FN31pr"])`
+- `contains_point_many`: `contains_point_many(["IO83ri"], [(53.1, -3.9)])`
+- `contains_many`: `contains_many(["IO83ri"], ["IO83rj"])`
+- `corners_many`: `corners_many(["IO83ri", "FN31pr"])`
+- `split_bbox_many`: `split_bbox_many(["RR00", "IO83ri"])`
+- `neighbors_many`: `neighbors_many(["IO83ri", "FN31pr"])`
+- `adjacent_many`: `adjacent_many(["IO83ri"])`
+- `precision_many`: `precision_many(["IO83ri", "FN31pr"])`
+- `intersects_bbox_many`: `intersects_bbox_many(["IO83ri"], [(-1, -2, 1, 2)])`
+- `intersects_polygon_many`: `intersects_polygon_many(["IO83ri"], [[[0, 0], [1, 0], [1, 1], [0, 1]]])`
+- `initial_bearing_many`: `initial_bearing_many(["IO83ri"], ["FN31pr"])`
+- `to_utm_zone_many`: `to_utm_zone_many(["IO83ri", "FN31pr"])`
+- `to_geojson_polygon_many`: `to_geojson_polygon_many(["IO83ri", "FN31pr"])`
+- `to_geojson_feature_many`: `to_geojson_feature_many(["IO83ri", "FN31pr"])`
+- `to_geojson_features_many`: `to_geojson_features_many(["IO83ri", "FN31pr"])`
+- `to_geojson_bbox_many`: `to_geojson_bbox_many(["IO83ri", "FN31pr"])`
+- `to_geojson_envelope_many`: `to_geojson_envelope_many(["IO83ri", "FN31pr"])`
+- `to_center_many`: `to_center_many(["IO83ri", "FN31pr"])`
+
 Optional dependencies:
 
 - `pandas`: vectorized Series helpers in `maidenhead.vector`.
