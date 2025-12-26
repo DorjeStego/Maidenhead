@@ -590,7 +590,7 @@ def to_geojson_feature_many(
     return out
 
 
-def to_geojson_feature_collection_many(
+def to_geojson_features_many(
     locators: Any,
     *,
     return_type: str = "auto",
@@ -599,7 +599,7 @@ def to_geojson_feature_collection_many(
     if return_type == "list":
         return out
     if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
-        return _geojson_series_out(locators, out, name="geojson_feature_collection")
+        return _geojson_series_out(locators, out, name="geojson_features")
     return out
 
 
