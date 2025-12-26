@@ -19,9 +19,10 @@ Planned tag: `v1.0.0rc1`.
 
 ## Install
 
-From PyPI:
+From a local package build (recommended to avoid PyPI name conflicts):
 
-`python -m pip install maidenhead`
+- Wheel: `python -m pip install dist/maidenhead-1.0.0rc1-py3-none-any.whl`
+- sdist: `python -m pip install dist/maidenhead-1.0.0rc1.tar.gz`
 
 Editable install for development:
 
