@@ -353,6 +353,17 @@ def build_parser() -> argparse.ArgumentParser:
             "intersects-polygon",
             "neighbors",
             "adjacent",
+            "corners",
+            "precision",
+            "parent",
+            "children",
+            "size",
+            "area",
+            "diagonal",
+            "utm",
+            "geojson",
+            "bbox-split",
+            "bbox-split-list",
         ],
         help="Bulk operation.",
     )
@@ -360,7 +371,7 @@ def build_parser() -> argparse.ArgumentParser:
         "-p",
         "--precision",
         type=int,
-        default=6,
+        default=None,
         help="Locator precision for from-latlon (default: 6).",
     )
     p_bulk.add_argument(
@@ -393,6 +404,41 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=1,
         help="Ring distance for neighbors (default: 1).",
+    )
+    p_bulk.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Limit number of results for bulk children.",
+    )
+    p_bulk.add_argument(
+        "--unit",
+        choices=["deg", "km", "miles"],
+        default="deg",
+        help="Unit for bulk size (default: deg).",
+    )
+    p_bulk.add_argument(
+        "--at-lat",
+        type=float,
+        default=None,
+        help="Latitude for bulk size east-west distance.",
+    )
+    p_bulk.add_argument(
+        "--method",
+        choices=["spherical", "geodesic"],
+        default="spherical",
+        help="Method for bulk area/diagonal/size (default: spherical).",
+    )
+    p_bulk.add_argument(
+        "--geojson-format",
+        choices=["feature", "featurecollection", "bbox", "envelope"],
+        default="feature",
+        help="GeoJSON output type for bulk geojson (default: feature).",
+    )
+    p_bulk.add_argument(
+        "--split",
+        action="store_true",
+        help="Split bbox across antimeridian for bulk geojson.",
     )
     _add_batch_args(p_bulk)
 
@@ -993,10 +1039,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             if args.op == "from-latlon":
                 lats, lons = _parse_latlon_lines(lines)
+                precision = args.precision if args.precision is not None else 6
                 out = vector_from_latlon_many(
                     lats,
                     lons,
-                    precision=args.precision,
+                    precision=precision,
                     return_type="list",
                 )
                 if args.format == "json":
@@ -1029,10 +1076,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             if args.op == "wkt":
                 out = []
+                precision = args.precision if args.precision is not None else 6
                 for line in lines:
                     if "," in line:
                         lat, lon = _parse_latlon([line])
-                        loc = from_latlon(lat, lon, precision=args.precision)
+                        loc = from_latlon(lat, lon, precision=precision)
                         out.append(to_wkt(loc))
                     else:
                         out.append(to_wkt(line))
@@ -1190,6 +1238,232 @@ def main(argv: Sequence[str] | None = None) -> int:
                     print("\n".join(",".join(f"{k}:{v}" for k, v in row) for row in out))
                 else:
                     print("\n".join(" ".join(f"{k}:{v}" for k, v in row) for row in out))
+                return 0
+
+            if args.op == "corners":
+                out = []
+                for line in lines:
+                    parts = _split_bulk_line(line)
+                    if len(parts) != 1:
+                        raise ValueError("Expected lines: locator")
+                    nw, ne, sw, se = corners(parts[0])
+                    out.append([nw, ne, sw, se])
+                if args.format == "json":
+                    print(_json_dumps(out))
+                else:
+                    point_sep = "," if args.format == "csv" else " "
+                    print(
+                        "\n".join(
+                            ";".join(
+                                f"{_fmt_float(lat, args.digits)}{point_sep}{_fmt_float(lon, args.digits)}"
+                                for lat, lon in row
+                            )
+                            for row in out
+                        )
+                    )
+                return 0
+
+            if args.op == "precision":
+                out = []
+                for line in lines:
+                    parts = _split_bulk_line(line)
+                    if len(parts) != 1:
+                        raise ValueError("Expected lines: locator")
+                    out.append(precision_of(parts[0]))
+                if args.format == "json":
+                    print(_json_dumps(out))
+                elif args.format == "csv":
+                    print(",".join(str(v) for v in out))
+                else:
+                    print("\n".join(str(v) for v in out))
+                return 0
+
+            if args.op == "parent":
+                out = []
+                for line in lines:
+                    parts = _split_bulk_line(line)
+                    if len(parts) != 1:
+                        raise ValueError("Expected lines: locator")
+                    if args.precision is None:
+                        out.append(parent(parts[0]).locator)
+                    else:
+                        out.append(parent(parts[0], precision=args.precision).locator)
+                if args.format == "json":
+                    print(_json_dumps(out))
+                elif args.format == "csv":
+                    print(",".join(out))
+                else:
+                    print("\n".join(out))
+                return 0
+
+            if args.op == "children":
+                out = []
+                for line in lines:
+                    parts = _split_bulk_line(line)
+                    if len(parts) != 1:
+                        raise ValueError("Expected lines: locator")
+                    if args.precision is None:
+                        g = parse(parts[0])
+                        precision = g.precision + 2
+                    else:
+                        precision = args.precision
+                    items = list(children(parts[0], precision=precision))
+                    if args.limit is not None:
+                        items = items[: args.limit]
+                    out.append([g.locator for g in items])
+                if args.format == "json":
+                    print(_json_dumps(out))
+                elif args.format == "csv":
+                    print("\n".join(",".join(row) for row in out))
+                else:
+                    print("\n".join(" ".join(row) for row in out))
+                return 0
+
+            if args.op == "size":
+                out = []
+                for line in lines:
+                    parts = _split_bulk_line(line)
+                    if len(parts) != 1:
+                        raise ValueError("Expected lines: locator")
+                    loc = parts[0]
+                    if args.unit == "deg":
+                        width, height = cell_size(loc, unit="deg")
+                    else:
+                        width, height = cell_size_km(
+                            loc,
+                            at_lat=args.at_lat,
+                            method=args.method,
+                        )
+                        if args.unit == "miles":
+                            miles_per_km = 0.621371
+                            width *= miles_per_km
+                            height *= miles_per_km
+                    out.append([_fmt_float(width, args.digits), _fmt_float(height, args.digits)])
+                if args.format == "json":
+                    print(_json_dumps(out))
+                else:
+                    sep = "," if args.format == "csv" else " "
+                    print("\n".join(sep.join(row) for row in out))
+                return 0
+
+            if args.op == "area":
+                out = []
+                for line in lines:
+                    parts = _split_bulk_line(line)
+                    if len(parts) != 1:
+                        raise ValueError("Expected lines: locator")
+                    out.append(_fmt_float(area_km2(parts[0], method=args.method), args.digits))
+                if args.format == "json":
+                    print(_json_dumps(out))
+                elif args.format == "csv":
+                    print(",".join(out))
+                else:
+                    print("\n".join(out))
+                return 0
+
+            if args.op == "diagonal":
+                out = []
+                for line in lines:
+                    parts = _split_bulk_line(line)
+                    if len(parts) != 1:
+                        raise ValueError("Expected lines: locator")
+                    out.append(_fmt_float(diagonal_km(parts[0], method=args.method), args.digits))
+                if args.format == "json":
+                    print(_json_dumps(out))
+                elif args.format == "csv":
+                    print(",".join(out))
+                else:
+                    print("\n".join(out))
+                return 0
+
+            if args.op == "utm":
+                out = []
+                for line in lines:
+                    parts = _split_bulk_line(line)
+                    if len(parts) != 1:
+                        raise ValueError("Expected lines: locator")
+                    out.append(to_utm_zone(parts[0]))
+                if args.format == "json":
+                    print(_json_dumps(out))
+                elif args.format == "csv":
+                    print(",".join(out))
+                else:
+                    print("\n".join(out))
+                return 0
+
+            if args.op == "geojson":
+                if args.geojson_format == "featurecollection":
+                    out = to_geojson_feature_collection(lines)
+                    print(_json_dumps(out))
+                    return 0
+                if args.geojson_format == "feature":
+                    out = [to_geojson_feature(loc) for loc in lines]
+                    print(_json_dumps(out))
+                    return 0
+                if args.geojson_format == "bbox":
+                    if args.split:
+                        out = [
+                            [list(b) for b in (split_bbox_list(to_bbox(loc)) or [to_bbox(loc)])]
+                            for loc in lines
+                        ]
+                    else:
+                        out = [to_geojson_bbox(loc) for loc in lines]
+                    print(_json_dumps(out))
+                    return 0
+                if args.geojson_format == "envelope":
+                    if args.split:
+                        out = {
+                            "type": "FeatureCollection",
+                            "features": [
+                                {"type": "Feature", "geometry": _bbox_polygon(b), "properties": {}}
+                                for loc in lines
+                                for b in (split_bbox_list(to_bbox(loc)) or [to_bbox(loc)])
+                            ],
+                        }
+                    else:
+                        out = [to_geojson_envelope(loc) for loc in lines]
+                    print(_json_dumps(out))
+                    return 0
+
+            if args.op == "bbox-split":
+                out = []
+                for line in lines:
+                    parts = _split_bulk_line(line)
+                    if len(parts) != 4:
+                        raise ValueError("Expected lines: min_lat min_lon max_lat max_lon")
+                    bbox = (float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3]))
+                    parts_out = split_bbox_list(bbox) or [bbox]
+                    out.append(parts_out)
+                if args.format == "json":
+                    print(_json_dumps([[list(b) for b in row] for row in out]))
+                else:
+                    sep = "," if args.format == "csv" else " "
+                    print(
+                        "\n".join(
+                            ";".join(_format_bbox_line(b, digits=args.digits, sep=sep) for b in row)
+                            for row in out
+                        )
+                    )
+                return 0
+
+            if args.op == "bbox-split-list":
+                out = []
+                for line in lines:
+                    parts = _split_bulk_line(line)
+                    if len(parts) != 4:
+                        raise ValueError("Expected lines: min_lat min_lon max_lat max_lon")
+                    bbox = (float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3]))
+                    out.append(split_bbox_list(bbox))
+                if args.format == "json":
+                    print(_json_dumps([[list(b) for b in row] for row in out]))
+                else:
+                    sep = "," if args.format == "csv" else " "
+                    print(
+                        "\n".join(
+                            ";".join(_format_bbox_line(b, digits=args.digits, sep=sep) for b in row)
+                            for row in out
+                        )
+                    )
                 return 0
 
         if args.cmd == "cover-circle":
