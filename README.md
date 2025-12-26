@@ -2,6 +2,78 @@
 
 A Python library for working with Maidenhead grid squares, geographic locators used mainly in Amateur Radio. Includes a command line utility for working with Maidenhead grid system.
 
+## Python API
+
+Basic usage:
+
+```python
+from maidenhead import normalize, from_latlon, to_center_latlon, to_bbox
+
+loc = normalize("io83ri")
+grid = from_latlon(53.073219, -3.934023, precision=6)
+center = to_center_latlon("IO83ri")
+bbox = to_bbox("IO83ri")
+```
+
+Precision:
+
+- Locators use even precision lengths: 2, 4, 6, 8, 10 (strict validation).
+- Use `format_locator(locator, precision=..., mode="truncate|center|error")` to coerce precision.
+- Use `precision_of(locator)` to read the precision.
+
+GridSquare:
+
+- `from_latlon` returns a `GridSquare`, and most helpers accept either a locator string or `GridSquare`.
+- Useful attributes: `.locator`, `.precision`, `.center`, `.bbox`.
+
+Neighborhood and topology:
+
+- `neighbors(locator, ring=1, diagonals=True)` returns surrounding locators.
+- `adjacent(locator, diagonals=True)` returns a direction map.
+- `step(locator, dlat_cells=0, dlon_cells=1)` moves by grid cells.
+- `parent(locator, precision=...)` and `children(locator, precision=...)` adjust precision.
+
+Geometry and containment:
+
+- `corners(locator)` returns NW/NE/SW/SE.
+- `contains(outer, inner)` and `contains_point(locator, lat, lon)`.
+- `intersects_bbox(locator, bbox)` and `intersects_polygon(locator, polygon)`.
+- `split_bbox(bbox)` / `split_bbox_list(bbox)` for antimeridian-safe handling.
+
+Geo outputs:
+
+- `to_geojson_polygon`, `to_geojson_feature`, `to_geojson_feature_collection`
+- `to_geojson_bbox`, `to_geojson_envelope`
+- `to_wkt(locator)`
+- `to_utm_zone(locator)`
+
+Geodesy helpers:
+
+- `distance_km(a, b, method="spherical|geodesic")`
+- `bearing_deg(a, b)`
+- `initial_bearing(locator_a, locator_b)`
+- `azimuth(a, b, range_mode=False)`
+- `midpoint(a, b)`
+- `great_circle_path(a, b, n=100)`
+- `bearing_bin(a, b, bin_size=5)`
+- `azimuthal_sector(a, b, width_deg)`
+
+Bulk and vectorized APIs:
+
+- `maidenhead.bulk` provides list-based helpers like `from_latlon_many`, `to_bbox_many`.
+- `maidenhead.vector` provides numpy/pandas-aware helpers (Series in -> Series out).
+
+Exceptions:
+
+- `InvalidLocatorError`, `PrecisionError`, `OutOfRangeError` surface validation failures.
+
+Optional dependencies:
+
+- `pandas`: vectorized Series helpers in `maidenhead.vector`.
+- `numpy`: vectorized numeric outputs in `maidenhead.vector`.
+- `orjson`: JSON output in CLI and GeoJSON helpers.
+- `geographiclib`: geodesic distance and area calculations.
+
 ## Maidenhead CLI (mh)
 
 Command-line utilities for working with Maidenhead grid squares.
@@ -58,6 +130,20 @@ Print bounding box as min_lat min_lon max_lat max_lon.
 
 * mh bbox --file locators.txt --format csv
 
+#### bbox-split
+
+Split a bbox that crosses the antimeridian.
+
+* mh bbox-split 10 170 20 -170
+
+* mh bbox-split 10 170 20 -170 --csv
+
+#### bbox-split-list
+
+Return a list of bboxes (1 or 2).
+
+* mh bbox-split-list 10 170 20 -170 --format json
+
 #### parts
 
 Print locator components (field/square/subsquare/etc).
@@ -95,6 +181,38 @@ Print cell diagonal length (km).
 * mh diagonal IO83rj
 
 * mh diagonal IO83rj --method geodesic
+
+#### corners
+
+Print the NW, NE, SW, SE corners of a locator.
+
+* mh corners IO83ri
+
+* mh corners IO83ri --csv
+
+#### precision
+
+Print locator precision (character length).
+
+* mh precision IO83ri
+
+#### neighbors
+
+List neighboring locators.
+
+* mh neighbors IO83ri
+
+* mh neighbors IO83ri --ring 2
+
+* mh neighbors IO83ri --no-diagonals
+
+#### adjacent
+
+List adjacent locators with directions.
+
+* mh adjacent IO83ri
+
+* mh adjacent IO83ri --no-diagonals
 
 #### step
 
@@ -134,6 +252,22 @@ Coerce locator precision.
 
 * mh format IO83rj --precision 6 --mode error
 
+#### parent
+
+Return parent locator at lower precision.
+
+* mh parent IO83ri
+
+* mh parent IO83ri --precision 4
+
+#### children
+
+List child locators at higher precision.
+
+* mh children IO83ri
+
+* mh children IO83ri --precision 8 --limit 10
+
 #### GeoJSON
 
 Emit GeoJSON for a locator or batch.
@@ -146,15 +280,53 @@ Emit GeoJSON for a locator or batch.
 
 Notes:
 
+- --geojson-format supports: polygon | feature | featurecollection | bbox | envelope
+
+- --split outputs antimeridian-safe geometry for bbox/envelope formats.
+
 - Batch GeoJSON requires --geojson-format featurecollection.
 
 - JSON output uses orjson (install with pip install orjson).
+
+#### wkt
+
+Emit WKT polygon for a locator or lat/lon.
+
+* mh wkt IO83ri
+
+* mh wkt 53.073219,-3.934023
+
+* mh wkt 53.073219, -3.934023
 
 #### utm
 
 Print the UTM zone for a locator.
 
 * mh utm IO83rj
+
+#### contains
+
+Check if one locator contains another.
+
+* mh contains IO83 IO83ri
+
+#### contains-point
+
+Check if locator contains a point (lat lon).
+
+* mh contains-point IO83ri 53.073219,-3.934023
+
+#### intersects-bbox
+
+Check if a locator intersects a bbox.
+
+* mh intersects-bbox IO83ri 50.0 -4.0 55.0 2.0
+
+#### intersects-polygon
+
+Check if a locator intersects a polygon.
+
+* mh intersects-polygon IO83ri 50.0,-4.0 50.0,2.0 55.0,2.0 55.0,-4.0
 
 #### cover-circle
 
@@ -240,6 +412,24 @@ Mixed input is supported (locator and lat,lon together):
 
 * mh bearing 53.073219, -3.934023 51.5074,-0.1278
 
+#### azimuth
+
+Return bearing and distance between A and B.
+
+* mh azimuth IO83ri FN31pr
+
+* mh azimuth 53.073219,-3.934023 51.5074,-0.1278
+
+* mh azimuth IO83ri 51.5074,-0.1278
+
+* mh azimuth IO83ri FN31pr --range
+
+#### initial-bearing
+
+Initial bearing (deg) between two locators.
+
+* mh initial-bearing IO83ri FN31pr
+
 #### midpoint
 
 Great-circle midpoint between A and B.
@@ -249,6 +439,35 @@ Great-circle midpoint between A and B.
 * mh midpoint 40.4168,-3.7038 55.7558,37.6173
 
 * mh midpoint RF82ib JP12fk --csv
+
+#### bulk
+
+Bulk operations for locators/latlon.
+
+* mh bulk normalize --stdin
+
+* mh bulk from-latlon --file coords.txt --format json
+
+* mh bulk center --stdin --format csv
+
+* mh bulk bbox --stdin --format json
+
+* mh bulk size --stdin --unit km --format csv
+
+* mh bulk geojson --stdin --geojson-format featurecollection --format json
+
+Batch input:
+
+- locators: one per line
+
+- lat/lon: "lat lon" or "lat,lon" (comma+space accepted)
+
+Supported ops:
+
+normalize, from-latlon, center, bbox, wkt, contains-point, contains,
+intersects-bbox, intersects-polygon, azimuth, initial-bearing, neighbors,
+adjacent, corners, precision, parent, children, size, area, diagonal, utm,
+geojson, bbox-split, bbox-split-list
 
 ### Global Options
 
