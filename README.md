@@ -2,6 +2,10 @@
 
 A Python library for working with Maidenhead grid squares, geographic locators used mainly in Amateur Radio. Includes a command line utility for working with Maidenhead grid system.
 
+## Release
+
+Planned tag: `v1.0.0rc1`.
+
 ## Python API
 
 Basic usage:

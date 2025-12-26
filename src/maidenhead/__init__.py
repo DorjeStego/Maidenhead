@@ -20,7 +20,7 @@ from importlib.metadata import PackageNotFoundError, version as _pkg_version
 try:
     __version__ = _pkg_version("maidenhead")
 except PackageNotFoundError:  # pragma: no cover (common in editable/dev mode)
-    __version__ = "0.1.0.dev2"
+    __version__ = "1.0.0rc1"
 
 
 # ---- Public types/exceptions ----
