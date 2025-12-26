@@ -466,9 +466,17 @@ def test_contains_sibling_false(valid_locators):
     assert not contains(outer, other)
 
 
-def test_contains_dateline_wrap(locator_cases):
-    outer = next(loc for loc in locator_cases["valid_locators"]["2"]["global"] if loc == "RR")
-    inner = next(loc for loc in locator_cases["valid_locators"]["4"]["global"] if loc == "RR00")
+def test_contains_dateline_wrap(locator_cases, monkeypatch):
+    outer = next(loc for loc in locator_cases["valid_locators"]["2"]["global"] if loc == "RJ")
+    inner = next(loc for loc in locator_cases["valid_locators"]["4"]["global"] if loc == "RJ80")
+    original_to_bbox = core.to_bbox
+
+    def _fake_to_bbox(locator):
+        if locator == outer:
+            return (0.0, 170.0, 1.0, -170.0)
+        return original_to_bbox(locator)
+
+    monkeypatch.setattr(core, "to_bbox", _fake_to_bbox)
     assert contains(outer, inner)
 
 
