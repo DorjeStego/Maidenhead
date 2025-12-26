@@ -138,6 +138,10 @@ Command-line utilities for working with Maidenhead grid squares.
 
 `mh <command> [options] [args]`
 
+Show version:
+
+- `mh --version`
+
 ### Commands
 
 #### normalize
@@ -238,6 +242,7 @@ List neighboring locators.
 
 - `mh neighbors IO83ri`
 - `mh neighbors IO83ri --ring 2`
+- `mh neighbors IO83ri --diagonals`
 - `mh neighbors IO83ri --no-diagonals`
 
 #### adjacent
@@ -245,6 +250,7 @@ List neighboring locators.
 List adjacent locators with directions.
 
 - `mh adjacent IO83ri`
+- `mh adjacent IO83ri --diagonals`
 - `mh adjacent IO83ri --no-diagonals`
 
 #### step
