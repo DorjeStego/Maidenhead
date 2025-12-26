@@ -692,7 +692,9 @@ def to_geojson_feature_collection(
     properties_fn: Callable[[LocatorLike | tuple[float, float]], dict] | None = None,
 ) -> dict:
     """
-    Return a GeoJSON FeatureCollection for locators.
+    Return a GeoJSON FeatureCollection for locators or lat/lon points.
+
+    properties_fn, if provided, receives each locator or (lat, lon) point.
     """
     features = []
     for loc in locators:
