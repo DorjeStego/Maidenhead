@@ -6,6 +6,37 @@ A Python library for working with Maidenhead grid squares, geographic locators u
 
 Planned tag: `v1.0.0rc1`.
 
+## Changelog
+
+### 1.0.0rc1
+
+- Release candidate for 1.0 with expanded API coverage, bulk/vector helpers, and CLI parity.
+
+## Install
+
+From PyPI:
+
+`python -m pip install maidenhead`
+
+Editable install for development:
+
+`python -m pip install -e .`
+
+## Quickstart
+
+Python:
+
+```python
+from maidenhead import from_latlon
+
+grid = from_latlon(53.073219, -3.934023, precision=6)
+print(grid.locator)
+```
+
+CLI:
+
+`mh from-latlon 53.073219,-3.934023`
+
 ## Python API
 
 Basic usage:
@@ -67,6 +98,23 @@ Bulk and vectorized APIs:
 - `maidenhead.bulk` provides list-based helpers like `from_latlon_many`, `to_bbox_many`.
 - `maidenhead.vector` provides numpy/pandas-aware helpers (Series in -> Series out).
 - Both bulk and vector helpers require equal-length inputs for paired operations and raise `ValueError` on mismatch.
+
+Bulk/vector output shapes (examples):
+
+- `from_latlon_many([lat...],[lon...])` -> `["IO83ri", "FN31pr"]`
+- `to_center_many(["IO83ri", "FN31pr"])` -> `[(lat, lon), (lat, lon)]`
+- `to_bbox_many(["IO83ri"])` -> `[(min_lat, min_lon, max_lat, max_lon)]`
+- `corners_many(["IO83ri"])` -> `[{"nw": (lat, lon), "ne": ..., "sw": ..., "se": ...}]`
+- `split_bbox_many(["RR00"])` -> `[[(min_lat, min_lon, max_lat, max_lon), (min_lat, min_lon, max_lat, max_lon)]]`
+- `to_geojson_polygon_many(["IO83ri"])` -> `[{"type": "Polygon", "coordinates": ...}]`
+- `to_geojson_feature_many(["IO83ri"])` -> `[{"type": "Feature", "geometry": ..., "properties": ...}]`
+- `to_geojson_features_many(["IO83ri"])` -> `[{"type": "Feature", ...}, ...]`
+- `to_geojson_bbox_many(["IO83ri"])` -> `[{"type": "Polygon", "bbox": ..., "coordinates": ...}]`
+- `to_wkt_many(["IO83ri"])` -> `["POLYGON ((...))"]`
+- `azimuth_many(["IO83ri"], ["FN31pr"])` -> `[(bearing_deg, distance_km)]`
+- `precision_many(["IO83ri"])` -> `[6]`
+
+Vectorized helpers in `maidenhead.vector` mirror the bulk names and return pandas Series when the inputs are Series; otherwise they return lists or numpy arrays depending on the input types.
 
 Exceptions:
 
@@ -298,15 +346,19 @@ List child locators at higher precision.
 
 #### GeoJSON
 
-Emit GeoJSON for a locator or batch.
+Emit GeoJSON for a locator, a lat/lon point, or batch input.
 
 - `mh geojson JO22db`
+- `mh geojson 53.073219,-3.934023`
+- `mh geojson 53.073219, -3.934023`
+- `mh geojson JO22db 53.073219,-3.934023   # mixed inputs`
 - `mh geojson JO22db --geojson-format featurecollection`
 - `mh geojson --stdin --geojson-format featurecollection`
 
 Notes:
 
 - `--geojson-format` supports: `polygon` | `feature` | `featurecollection` | `bbox` | `envelope`
+- Mixed inputs are supported for `feature` and `featurecollection` outputs.
 - `--split outputs` antimeridian-safe geometry for bbox/envelope formats.
 - Batch GeoJSON requires `--geojson-format featurecollection`.
 - JSON output uses orjson (install with pip install orjson).
