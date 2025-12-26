@@ -96,7 +96,14 @@ def _add_batch_args(p: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mh",
-        description="Maidenhead grid square utilities",
+        description="Maidenhead grid square utilities for encoding and decoding locators.",
+        epilog=(
+            "Examples:\n"
+            "  mh normalize IO91wm\n"
+            "  mh center IO83ri\n"
+            "  mh from-latlon 53.365418,-2.574069\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--version",
@@ -768,7 +775,11 @@ def _read_batch_lines(file_path: str | None, use_stdin: bool) -> list[str]:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(list(argv) if argv is not None else None)
+    raw_argv = list(argv) if argv is not None else sys.argv[1:]
+    if not raw_argv:
+        parser.print_help()
+        return 0
+    args = parser.parse_args(raw_argv)
 
     try:
         if args.cmd == "normalize":
