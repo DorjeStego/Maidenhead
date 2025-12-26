@@ -173,9 +173,14 @@ Bulk list helpers (list in, list out):
 
 Optional dependencies:
 
+Required dependencies:
+
 - `pandas`: vectorized Series helpers in `maidenhead.vector`.
-- `numpy`: vectorized numeric outputs in `maidenhead.vector`.
 - `orjson`: JSON output in CLI and GeoJSON helpers.
+
+Optional dependencies:
+
+- `numpy`: vectorized numeric outputs in `maidenhead.vector`.
 - `geographiclib`: geodesic distance and area calculations.
 
 ## Maidenhead CLI (mh)
