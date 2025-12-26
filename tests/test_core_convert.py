@@ -44,13 +44,6 @@ from maidenhead.errors import PrecisionError
 from maidenhead.geo import bearing_deg, distance_km
 
 
-def _pick_by_length(valid_locators, length):
-    for loc in valid_locators:
-        if len(loc) == length:
-            return loc
-    raise AssertionError(f"no locator with length {length}")
-
-
 def test_center_roundtrip_locators(valid_locators):
     for loc in valid_locators:
         lat, lon = to_center_latlon(loc)
@@ -74,8 +67,8 @@ def test_bbox_contains_center(valid_locators):
         assert min_lon <= lon <= max_lon
 
 
-def test_bbox_split_none_for_standard_cells(valid_locators):
-    loc = _pick_by_length(valid_locators, 4)
+def test_bbox_split_none_for_standard_cells(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[4], seed=409)[0]
     assert to_bbox_split(loc) is None
 
 
@@ -130,8 +123,8 @@ def test_bbox_split_crosses_antimeridian_west(monkeypatch):
     assert east == (0.0, -180.0, 10.0, -160.0)
 
 
-def test_geojson_polygon_matches_bbox(valid_locators):
-    loc = _pick_by_length(valid_locators, 4)
+def test_geojson_polygon_matches_bbox(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[4], seed=410)[0]
     min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
     geojson = to_geojson_polygon(loc)
     assert geojson["type"] == "Polygon"
@@ -143,32 +136,32 @@ def test_geojson_polygon_matches_bbox(valid_locators):
     assert ring[4] == [min_lon, min_lat]
 
 
-def test_geojson_feature(valid_locators):
-    loc = _pick_by_length(valid_locators, 4)
+def test_geojson_feature(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[4], seed=411)[0]
     feature = to_geojson_feature(loc, properties={"name": "cell"})
     assert feature["type"] == "Feature"
     assert feature["properties"]["name"] == "cell"
     assert feature["geometry"]["type"] == "Polygon"
 
 
-def test_geojson_feature_collection(valid_locators):
-    locs = valid_locators[:2]
+def test_geojson_feature_collection(sample_valid_locators):
+    locs = sample_valid_locators(lengths=[4, 6], seed=412, count=1)
     fc = to_geojson_feature_collection(locs, properties_fn=lambda l: {"loc": l})
     assert fc["type"] == "FeatureCollection"
     assert len(fc["features"]) == 2
     assert fc["features"][0]["properties"]["loc"] == locs[0]
 
 
-def test_geojson_bbox_and_envelope(valid_locators):
-    loc = _pick_by_length(valid_locators, 4)
+def test_geojson_bbox_and_envelope(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[4], seed=413)[0]
     bbox = to_geojson_bbox(loc)
     env = to_geojson_envelope(loc)
     assert env["bbox"] == bbox
     assert env["type"] == "Polygon"
 
 
-def test_wkt_matches_bbox(valid_locators):
-    loc = _pick_by_length(valid_locators, 6)
+def test_wkt_matches_bbox(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=414)[0]
     min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
     wkt = to_wkt(loc)
     expected = (
@@ -178,8 +171,8 @@ def test_wkt_matches_bbox(valid_locators):
     assert wkt == expected
 
 
-def test_contains_point_and_intersects_bbox(valid_locators):
-    loc = _pick_by_length(valid_locators, 4)
+def test_contains_point_and_intersects_bbox(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[4], seed=415)[0]
     lat, lon = to_center_latlon(loc)
     assert contains_point(loc, lat, lon)
     assert not contains_point(loc, 89.9, 0.0)
@@ -194,8 +187,8 @@ def test_intersects_bbox_dateline_wrap():
     assert not intersects_bbox(loc, (-1.0, -20.0, 1.0, -10.0))
 
 
-def test_intersects_polygon(valid_locators):
-    loc = _pick_by_length(valid_locators, 4)
+def test_intersects_polygon(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[4], seed=416)[0]
     lat, lon = to_center_latlon(loc)
     poly = [
         (lat - 0.1, lon - 0.1),
@@ -208,8 +201,8 @@ def test_intersects_polygon(valid_locators):
     assert not intersects_polygon(loc, far_poly)
 
 
-def test_intersects_polygon_edge_crossing(valid_locators):
-    loc = _pick_by_length(valid_locators, 4)
+def test_intersects_polygon_edge_crossing(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[4], seed=417)[0]
     min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
     mid_lat = (min_lat + max_lat) / 2.0
     poly = [
@@ -275,12 +268,9 @@ def test_to_utm_zone():
     assert to_utm_zone(loc_s) == "36S"
 
 
-def test_corners_match_bbox(valid_locators):
-    for loc in [
-        _pick_by_length(valid_locators, 4),
-        _pick_by_length(valid_locators, 6),
-        _pick_by_length(valid_locators, 8),
-    ]:
+def test_corners_match_bbox(sample_valid_locators):
+    locs = sample_valid_locators(lengths=[4, 6, 8, 10], seed=418)
+    for loc in locs:
         min_lat, min_lon, max_lat, max_lon = to_bbox(loc)
         nw, ne, sw, se = corners(loc)
         assert nw == (max_lat, min_lon)
@@ -335,51 +325,56 @@ def test_cell_size_degrees_from_precision():
     assert height == pytest.approx(step.lat_step_deg)
 
 
-def test_cell_size_deg_matches_cell_size(valid_locators):
-    loc = _pick_by_length(valid_locators, 4)
-    assert cell_size_deg(loc) == cell_size(loc, unit="deg")
+def test_cell_size_deg_matches_cell_size(sample_valid_locators):
+    locs = sample_valid_locators(lengths=[2, 4, 6, 8, 10], seed=401)
+    for loc in locs:
+        assert cell_size_deg(loc) == cell_size(loc, unit="deg")
 
 
-def test_cell_size_km_at_lat(valid_locators):
-    loc = _pick_by_length(valid_locators, 4)
-    width_center, height_center = cell_size_km(loc)
-    width_at = cell_size_km(loc, at_lat=10.0)[0]
-    assert height_center > 0
-    assert width_center > 0
-    assert width_at > 0
+def test_cell_size_km_at_lat(sample_valid_locators):
+    locs = sample_valid_locators(lengths=[2, 4, 6, 8, 10], seed=402)
+    for loc in locs:
+        width_center, height_center = cell_size_km(loc)
+        width_at = cell_size_km(loc, at_lat=10.0)[0]
+        assert height_center > 0
+        assert width_center > 0
+        assert width_at > 0
 
 
-def test_area_km2_and_diagonal(valid_locators):
-    loc = _pick_by_length(valid_locators, 4)
-    area = area_km2(loc)
-    diag = diagonal_km(loc)
-    assert area > 0
-    assert diag > 0
+def test_area_km2_and_diagonal(sample_valid_locators):
+    locs = sample_valid_locators(lengths=[2, 4, 6, 8, 10], seed=403)
+    for loc in locs:
+        area = area_km2(loc)
+        diag = diagonal_km(loc)
+        assert area > 0
+        assert diag > 0
 
 
-def test_cell_size_degrees_from_locator(valid_locators):
-    loc = _pick_by_length(valid_locators, 6)
-    width, height = cell_size(loc)
-    step = C.step_size_for_pair(3)
-    assert width == pytest.approx(step.lon_step_deg)
-    assert height == pytest.approx(step.lat_step_deg)
+def test_cell_size_degrees_from_locator(sample_valid_locators):
+    locs = sample_valid_locators(lengths=[2, 4, 6, 8, 10], seed=404)
+    for loc in locs:
+        width, height = cell_size(loc)
+        step = C.step_size_for_pair(len(loc) // 2)
+        assert width == pytest.approx(step.lon_step_deg)
+        assert height == pytest.approx(step.lat_step_deg)
 
 
-def test_cell_size_distance_units(valid_locators):
-    loc = _pick_by_length(valid_locators, 4)
-    step = C.step_size_for_pair(len(loc) // 2)
-    lat, lon = to_center_latlon(loc)
-    half_lon = step.lon_step_deg / 2.0
-    half_lat = step.lat_step_deg / 2.0
-    expected_width_km = distance_km((lat, lon - half_lon), (lat, lon + half_lon))
-    expected_height_km = distance_km((lat - half_lat, lon), (lat + half_lat, lon))
-    width_km, height_km = cell_size(loc, unit="km")
-    assert width_km == pytest.approx(expected_width_km)
-    assert height_km == pytest.approx(expected_height_km)
-    width_mi, height_mi = cell_size(loc, unit="miles")
+def test_cell_size_distance_units(sample_valid_locators):
+    locs = sample_valid_locators(lengths=[2, 4, 6, 8, 10], seed=405)
     miles_per_km = 0.621371
-    assert width_mi == pytest.approx(expected_width_km * miles_per_km)
-    assert height_mi == pytest.approx(expected_height_km * miles_per_km)
+    for loc in locs:
+        step = C.step_size_for_pair(len(loc) // 2)
+        lat, lon = to_center_latlon(loc)
+        half_lon = step.lon_step_deg / 2.0
+        half_lat = step.lat_step_deg / 2.0
+        expected_width_km = distance_km((lat, lon - half_lon), (lat, lon + half_lon))
+        expected_height_km = distance_km((lat - half_lat, lon), (lat + half_lat, lon))
+        width_km, height_km = cell_size(loc, unit="km")
+        assert width_km == pytest.approx(expected_width_km)
+        assert height_km == pytest.approx(expected_height_km)
+        width_mi, height_mi = cell_size(loc, unit="miles")
+        assert width_mi == pytest.approx(expected_width_km * miles_per_km)
+        assert height_mi == pytest.approx(expected_height_km * miles_per_km)
 
 
 def test_from_latlon_precision_rejects_invalid():
@@ -394,20 +389,20 @@ def test_from_latlon_fallback_precision():
     assert len(loc2.locator) == 4
 
 
-def test_format_locator_truncate(valid_locators):
-    loc = _pick_by_length(valid_locators, 6)
+def test_format_locator_truncate(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=406)[0]
     out = format_locator(loc, precision=4, mode="truncate")
     assert out.locator == normalize(loc)[:4]
 
 
-def test_format_locator_center(valid_locators):
-    loc = _pick_by_length(valid_locators, 4)
+def test_format_locator_center(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[4], seed=407)[0]
     out = format_locator(loc, precision=6, mode="center")
     assert len(out.locator) == 6
 
 
-def test_format_locator_error(valid_locators):
-    loc = _pick_by_length(valid_locators, 6)
+def test_format_locator_error(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=408)[0]
     with pytest.raises(PrecisionError):
         format_locator(loc, precision=4, mode="error")
 
@@ -441,8 +436,8 @@ def test_step_matches_adjacent(valid_locators):
     assert step(loc, dlon_cells=-1).locator == adj["W"].locator
 
 
-def test_step_zero_returns_same(valid_locators):
-    loc = valid_locators[0]
+def test_step_zero_returns_same(sample_valid_locators):
+    loc = sample_valid_locators(lengths=[6], seed=419)[0]
     assert step(loc).locator == normalize(loc)
 
 

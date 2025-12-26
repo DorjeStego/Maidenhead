@@ -1,4 +1,5 @@
 import json
+import random
 import sys
 from pathlib import Path
 
@@ -71,3 +72,44 @@ def invalid_locator_groups(locator_cases):
     if not isinstance(invalid_locators, dict):
         raise TypeError("invalid_locators must be a dict for grouped access")
     return invalid_locators
+
+
+@pytest.fixture()
+def sample_valid_locators(valid_locator_groups):
+    def _sample(*, lengths=None, count=1, seed=0):
+        rng = random.Random(seed)
+        lengths = lengths or sorted(valid_locator_groups.keys(), key=int)
+        out = []
+        for length in lengths:
+            length_map = valid_locator_groups[str(length)]
+            pool = []
+            for values in length_map.values():
+                pool.extend(values)
+            if not pool:
+                continue
+            if count >= len(pool):
+                out.extend(pool)
+            else:
+                out.extend(rng.sample(pool, count))
+        return out
+
+    return _sample
+
+
+@pytest.fixture()
+def sample_invalid_locators(invalid_locator_groups):
+    def _sample(*, categories=None, count=1, seed=0):
+        rng = random.Random(seed)
+        categories = categories or list(invalid_locator_groups.keys())
+        out = []
+        for category in categories:
+            pool = invalid_locator_groups[category]
+            if not pool:
+                continue
+            if count >= len(pool):
+                out.extend(pool)
+            else:
+                out.extend(rng.sample(pool, count))
+        return out
+
+    return _sample
