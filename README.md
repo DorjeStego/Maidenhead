@@ -80,7 +80,7 @@ Command-line utilities for working with Maidenhead grid squares.
 
 ### Usage
 
-mh <command> [options] [args]
+`mh <command> [options] [args]`
 
 ### Commands
 
@@ -88,157 +88,127 @@ mh <command> [options] [args]
 
 Normalize locator casing and validate.
 
-* mh normalize FN31pr
-
-* mh normalize qf56oc
-
-* mh normalize --stdin --format json
+- `mh normalize FN31pr`
+- `mh normalize qf56oc`
+- `mh normalize --stdin --format json`
 
 #### validate
 
 Validate a locator. Exit code 0 if valid, 2 if invalid.
 
-* mh validate JO22db
-
-* mh validate AA0
-
-* mh validate AA0 --print   # prints "invalid"
+- `mh validate JO22db`
+- `mh validate AA0`
+- `mh validate AA0 --print   # prints "invalid"`
 
 #### center
 
 Print the center latitude/longitude of a locator.
 
-* mh center QF56oc
-
-* mh center QF56oc --digits 4
-
-* mh center QF56oc --csv
-
-* mh center --file locators.txt --format csv
-
-* mh center --stdin --format json
+- `mh center QF56oc`
+- `mh center QF56oc --digits 4`
+- `mh center QF56oc --csv`
+- `mh center --file locators.txt --format csv`
+- `mh center --stdin --format json`
 
 #### bbox
 
 Print bounding box as min_lat min_lon max_lat max_lon.
 
-* mh bbox EM12rx
-
-* mh bbox EM12rx --digits 5
-
-* mh bbox EM12rx --csv
-
-* mh bbox --file locators.txt --format csv
+- `mh bbox EM12rx`
+- `mh bbox EM12rx --digits 5`
+- `mh bbox EM12rx --csv`
+- `mh bbox --file locators.txt --format csv`
 
 #### bbox-split
 
 Split a bbox that crosses the antimeridian.
 
-* mh bbox-split 10 170 20 -170
-
-* mh bbox-split 10 170 20 -170 --csv
+- `mh bbox-split 10 170 20 -170`
+- `mh bbox-split 10 170 20 -170 --csv`
 
 #### bbox-split-list
 
 Return a list of bboxes (1 or 2).
 
-* mh bbox-split-list 10 170 20 -170 --format json
+- `mh bbox-split-list 10 170 20 -170 --format json`
 
 #### parts
 
 Print locator components (field/square/subsquare/etc).
 
-* mh parts IO83rj42
-
-* mh parts FN31pr
+- `mh parts IO83rj42`
+- `mh parts FN31pr`
 
 #### size
 
 Print cell size (width height) for a locator.
 
-* mh size IO83rj
-
-* mh size IO83rj --unit km
-
-* mh size IO83rj --unit km --lon-at 45
-
-* mh size IO83rj --unit km --at-lat 10 --method spherical
-
-* mh size IO83rj --unit miles --csv
+- `mh size IO83rj`
+- `mh size IO83rj --unit km`
+- `mh size IO83rj --unit km --lon-at 45`
+- `mh size IO83rj --unit km --at-lat 10 --method spherical`
+- `mh size IO83rj --unit miles --csv`
 
 #### area
 
 Print cell area (km^2).
 
-* mh area IO83rj
-
-* mh area IO83rj --method geodesic
+- `mh area IO83rj`
+- `mh area IO83rj --method geodesic`
 
 #### diagonal
 
 Print cell diagonal length (km).
 
-* mh diagonal IO83rj
-
-* mh diagonal IO83rj --method geodesic
+- `mh diagonal IO83rj`
+- `mh diagonal IO83rj --method geodesic`
 
 #### corners
 
 Print the NW, NE, SW, SE corners of a locator.
 
-* mh corners IO83ri
-
-* mh corners IO83ri --csv
+- `mh corners IO83ri`
+- `mh corners IO83ri --csv`
 
 #### precision
 
 Print locator precision (character length).
 
-* mh precision IO83ri
+- `mh precision IO83ri`
 
 #### neighbors
 
 List neighboring locators.
 
-* mh neighbors IO83ri
-
-* mh neighbors IO83ri --ring 2
-
-* mh neighbors IO83ri --no-diagonals
+- `mh neighbors IO83ri`
+- `mh neighbors IO83ri --ring 2`
+- `mh neighbors IO83ri --no-diagonals`
 
 #### adjacent
 
 List adjacent locators with directions.
 
-* mh adjacent IO83ri
-
-* mh adjacent IO83ri --no-diagonals
+- `mh adjacent IO83ri`
+- `mh adjacent IO83ri --no-diagonals`
 
 #### step
 
 Move a locator by a number of grid cells.
 
-* mh step IO83rj --dlat-cells 1
-
-* mh step IO83rj --dlon-cells -2
+- `mh step IO83rj --dlat-cells 1`
+- `mh step IO83rj --dlon-cells -2`
 
 #### from-latlon
 
 Convert latitude/longitude to a locator.
 
-* mh from-latlon 35.6895 139.6917
-
-* mh from-latlon 35.6895,139.6917
-
-* mh from-latlon 53.073219, -3.934023
-
-* mh from-latlon -22.9068 -43.1729 --precision 8
-
-* mh from-latlon 90 180 --no-clamp   # error
-
-* mh from-latlon --file coords.txt --format json
-
-* mh from-latlon --stdin --format plain
+- `mh from-latlon 35.6895 139.6917`
+- `mh from-latlon 35.6895,139.6917`
+- `mh from-latlon 53.073219, -3.934023`
+- `mh from-latlon -22.9068 -43.1729 --precision 8`
+- `mh from-latlon 90 180 --no-clamp   # error`
+- `mh from-latlon --file coords.txt --format json`
+- `mh from-latlon --stdin --format plain`
 
 Batch input expects one lat,lon (or lat lon) per line.
 
@@ -246,123 +216,107 @@ Batch input expects one lat,lon (or lat lon) per line.
 
 Coerce locator precision.
 
-* mh format IO83rj --precision 4 --mode truncate
-
-* mh format IO83rj --precision 6 --mode center
-
-* mh format IO83rj --precision 6 --mode error
+- `mh format IO83rj --precision 4 --mode truncate`
+- `mh format IO83rj --precision 6 --mode center`
+- `mh format IO83rj --precision 6 --mode error`
 
 #### parent
 
 Return parent locator at lower precision.
 
-* mh parent IO83ri
-
-* mh parent IO83ri --precision 4
+- `mh parent IO83ri`
+- `mh parent IO83ri --precision 4`
 
 #### children
 
 List child locators at higher precision.
 
-* mh children IO83ri
-
-* mh children IO83ri --precision 8 --limit 10
+- `mh children IO83ri`
+- `mh children IO83ri --precision 8 --limit 10`
 
 #### GeoJSON
 
 Emit GeoJSON for a locator or batch.
 
-* mh geojson JO22db
-
-* mh geojson JO22db --geojson-format featurecollection
-
-* mh geojson --stdin --geojson-format featurecollection
+- `mh geojson JO22db`
+- `mh geojson JO22db --geojson-format featurecollection`
+- `mh geojson --stdin --geojson-format featurecollection`
 
 Notes:
 
 - --geojson-format supports: polygon | feature | featurecollection | bbox | envelope
-
 - --split outputs antimeridian-safe geometry for bbox/envelope formats.
-
 - Batch GeoJSON requires --geojson-format featurecollection.
-
 - JSON output uses orjson (install with pip install orjson).
 
 #### wkt
 
 Emit WKT polygon for a locator or lat/lon.
 
-* mh wkt IO83ri
-
-* mh wkt 53.073219,-3.934023
-
-* mh wkt 53.073219, -3.934023
+- `mh wkt IO83ri`
+- `mh wkt 53.073219,-3.934023`
+- `mh wkt 53.073219, -3.934023`
 
 #### utm
 
 Print the UTM zone for a locator.
 
-* mh utm IO83rj
+- `mh utm IO83rj`
 
 #### contains
 
 Check if one locator contains another.
 
-* mh contains IO83 IO83ri
+- `mh contains IO83 IO83ri`
 
 #### contains-point
 
 Check if locator contains a point (lat lon).
 
-* mh contains-point IO83ri 53.073219,-3.934023
+- `mh contains-point IO83ri 53.073219,-3.934023`
 
 #### intersects-bbox
 
 Check if a locator intersects a bbox.
 
-* mh intersects-bbox IO83ri 50.0 -4.0 55.0 2.0
+- `mh intersects-bbox IO83ri 50.0 -4.0 55.0 2.0`
 
 #### intersects-polygon
 
 Check if a locator intersects a polygon.
 
-* mh intersects-polygon IO83ri 50.0,-4.0 50.0,2.0 55.0,2.0 55.0,-4.0
+- `mh intersects-polygon IO83ri 50.0,-4.0 50.0,2.0 55.0,2.0 55.0,-4.0`
 
 #### cover-circle
 
 Cover a circle with grid squares (space-separated output by default).
 
-* mh cover-circle 0.0,0.0 5 --precision 4
-
-* mh cover-circle IO83rj 10 --precision 6 --csv
-
-* mh cover-circle 53.073219, -3.934023 5 --precision 4
+- `mh cover-circle 0.0,0.0 5 --precision 4`
+- `mh cover-circle IO83rj 10 --precision 6 --csv`
+- `mh cover-circle 53.073219, -3.934023 5 --precision 4`
 
 Batch input expects: center radius_km precision
 
-* mh cover-circle --stdin --format json
+- `mh cover-circle --stdin --format json`
 
 #### cover-line
 
 Cover a line with grid squares.
 
-* mh cover-line 0.0,0.0 1.0,1.0 --precision 4
-
-* mh cover-line IO83rj FN31pr --precision 4 --method geodesic
-
-* mh cover-line 53.073219, -3.934023 51.5074,-0.1278 --precision 4
+- `mh cover-line 0.0,0.0 1.0,1.0 --precision 4`
+- `mh cover-line IO83rj FN31pr --precision 4 --method geodesic`
+- `mh cover-line 53.073219, -3.934023 51.5074,-0.1278 --precision 4`
 
 Batch input expects: start end precision
 
-* mh cover-line --file lines.txt --format csv
+- `mh cover-line --file lines.txt --format csv`
 
 #### great-circle
 
 Print points along a great-circle path.
 
-* mh great-circle 0.0,0.0 1.0,1.0 --points-count 5
-
-* mh great-circle 53.073219, -3.934023 51.5074,-0.1278 --points-count 10 --csv
+- `mh great-circle 0.0,0.0 1.0,1.0 --points-count 5`
+- `mh great-circle 53.073219, -3.934023 51.5074,-0.1278 --points-count 10 --csv`
 
 Outputs one point per line as lat lon (or lat,lon with --csv).
 
@@ -370,96 +324,80 @@ Outputs one point per line as lat lon (or lat,lon with --csv).
 
 Return the bearing bin start angle from A to B.
 
-* mh bearing-bin 0.0,0.0 0.0,10.0 --bin-size 10
+- `mh bearing-bin 0.0,0.0 0.0,10.0 --bin-size 10`
 
 #### azimuthal-sector
 
 Return a bearing sector (start end) from A to B.
 
-* mh azimuthal-sector 0.0,0.0 0.0,10.0 --width 20
-
-* mh azimuthal-sector 0.0,0.0 0.0,10.0 --width 20 --csv
+- `mh azimuthal-sector 0.0,0.0 0.0,10.0 --width 20`
+- `mh azimuthal-sector 0.0,0.0 0.0,10.0 --width 20 --csv`
 
 #### distance
 
 Distance (km) between two locators or points (lat,lon).
 
-* mh distance IO83rj FN31pr
-
-* mh distance -33.8688,151.2093 51.5074,-0.1278
-
-* mh distance IO83rj FN31pr --method geodesic
+- `mh distance IO83rj FN31pr`
+- `mh distance -33.8688,151.2093 51.5074,-0.1278`
+- `mh distance IO83rj FN31pr --method geodesic`
 
 Mixed input is supported (locator and lat,lon together):
 
-* mh distance IO83rj 51.5074,-0.1278
+- `mh distance IO83rj 51.5074,-0.1278`
 
 Comma-space input is supported:
 
-* mh distance 53.073219, -3.934023 51.5074,-0.1278
+- `mh distance 53.073219, -3.934023 51.5074,-0.1278`
 
 #### bearing
 
 Initial bearing (degrees) from A to B.
 
-* mh bearing CM98jw JO22db
-
-* mh bearing 37.7749,-122.4194 48.8566,2.3522
+- `mh bearing CM98jw JO22db`
+- `mh bearing 37.7749,-122.4194 48.8566,2.3522`
 
 Mixed input is supported (locator and lat,lon together):
 
-* mh bearing IO83rj 51.5074,-0.1278
-
-* mh bearing 53.073219, -3.934023 51.5074,-0.1278
+- `mh bearing IO83rj 51.5074,-0.1278`
+- `mh bearing 53.073219, -3.934023 51.5074,-0.1278`
 
 #### azimuth
 
 Return bearing and distance between A and B.
 
-* mh azimuth IO83ri FN31pr
-
-* mh azimuth 53.073219,-3.934023 51.5074,-0.1278
-
-* mh azimuth IO83ri 51.5074,-0.1278
-
-* mh azimuth IO83ri FN31pr --range
+- `mh azimuth IO83ri FN31pr`
+- `mh azimuth 53.073219,-3.934023 51.5074,-0.1278`
+- `mh azimuth IO83ri 51.5074,-0.1278`
+- `mh azimuth IO83ri FN31pr --range`
 
 #### initial-bearing
 
 Initial bearing (deg) between two locators.
 
-* mh initial-bearing IO83ri FN31pr
+- `mh initial-bearing IO83ri FN31pr`
 
 #### midpoint
 
 Great-circle midpoint between A and B.
 
-* mh midpoint RF82ib JP12fk
-
-* mh midpoint 40.4168,-3.7038 55.7558,37.6173
-
-* mh midpoint RF82ib JP12fk --csv
+- `mh midpoint RF82ib JP12fk`
+- `mh midpoint 40.4168,-3.7038 55.7558,37.6173`
+- `mh midpoint RF82ib JP12fk --csv`
 
 #### bulk
 
 Bulk operations for locators/latlon.
 
-* mh bulk normalize --stdin
-
-* mh bulk from-latlon --file coords.txt --format json
-
-* mh bulk center --stdin --format csv
-
-* mh bulk bbox --stdin --format json
-
-* mh bulk size --stdin --unit km --format csv
-
-* mh bulk geojson --stdin --geojson-format featurecollection --format json
+- `mh bulk normalize --stdin`
+- `mh bulk from-latlon --file coords.txt --format json`
+- `mh bulk center --stdin --format csv`
+- `mh bulk bbox --stdin --format json`
+- `mh bulk size --stdin --unit km --format csv`
+- `mh bulk geojson --stdin --geojson-format featurecollection --format json`
 
 Batch input:
 
 - locators: one per line
-
 - lat/lon: "lat lon" or "lat,lon" (comma+space accepted)
 
 Supported ops:
@@ -474,21 +412,17 @@ geojson, bbox-split, bbox-split-list
 Most coordinate outputs share:
 
 - --digits N: decimal places for numeric output (default 6)
-
 - --csv: comma-separated output
 
 Batch input options:
 
 - --file PATH: read input lines from a file
-
 - --stdin: read input lines from stdin
-
 - --format plain|csv|json: output format for batch mode
 
 ### Exit Codes
 
 - 0: success (valid input)
-
 - 2: invalid input / usage error
 
 ———
