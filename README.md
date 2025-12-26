@@ -244,9 +244,9 @@ Emit GeoJSON for a locator or batch.
 
 Notes:
 
-- --geojson-format supports: polygon | feature | featurecollection | bbox | envelope
-- --split outputs antimeridian-safe geometry for bbox/envelope formats.
-- Batch GeoJSON requires --geojson-format featurecollection.
+- `--geojson-format` supports: `polygon` | `feature` | `featurecollection` | `bbox` | `envelope`
+- `--split outputs` antimeridian-safe geometry for bbox/envelope formats.
+- Batch GeoJSON requires `--geojson-format featurecollection`.
 - JSON output uses orjson (install with pip install orjson).
 
 #### wkt
@@ -411,18 +411,18 @@ geojson, bbox-split, bbox-split-list
 
 Most coordinate outputs share:
 
-- --digits N: decimal places for numeric output (default 6)
-- --csv: comma-separated output
+- `--digits N`: decimal places for numeric output (default 6)
+- `--csv`: comma-separated output
 
 Batch input options:
 
-- --file PATH: read input lines from a file
-- --stdin: read input lines from stdin
-- --format plain|csv|json: output format for batch mode
+- `--file PATH`: read input lines from a file
+- `--stdin`: read input lines from stdin
+- `--format plain|csv|json`: output format for batch mode
 
 ### Exit Codes
 
-- 0: success (valid input)
-- 2: invalid input / usage error
+- `0`: success (valid input)
+- `2`: invalid input / usage error
 
 ———
