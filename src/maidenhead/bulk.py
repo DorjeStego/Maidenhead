@@ -329,7 +329,7 @@ def to_geojson_feature_many(locators: Iterable[LocatorLike]) -> list[dict]:
     return [to_geojson_feature(loc) for loc in locators]
 
 
-def to_geojson_feature_collection_many(locators: Iterable[LocatorLike]) -> list[dict]:
+def to_geojson_features_many(locators: Iterable[LocatorLike]) -> list[dict]:
     return [to_geojson_feature(loc) for loc in locators]
 
 

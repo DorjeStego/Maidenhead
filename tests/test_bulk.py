@@ -37,7 +37,7 @@ from maidenhead import (
     to_geojson_envelope_many,
     to_geojson_feature,
     to_geojson_feature_collection,
-    to_geojson_feature_collection_many,
+    to_geojson_features_many,
     to_geojson_feature_many,
     to_geojson_polygon,
     to_geojson_polygon_many,
@@ -391,10 +391,10 @@ def test_to_geojson_feature_many(valid_locators):
         assert feature == to_geojson_feature(loc)
 
 
-def test_to_geojson_feature_collection_many(valid_locators):
+def test_to_geojson_features_many(valid_locators):
     rng = random.Random(39)
     locs = rng.sample(valid_locators, min(3, len(valid_locators)))
-    out = to_geojson_feature_collection_many(locs)
+    out = to_geojson_features_many(locs)
     assert out == [to_geojson_feature(loc) for loc in locs]
 
 
