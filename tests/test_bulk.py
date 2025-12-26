@@ -7,7 +7,6 @@ from maidenhead import (
     cell_size_deg,
     cell_size_deg_many,
     cell_size_many,
-    cell_size_km,
     cell_size_km_many,
     area_km2,
     area_km2_many,
@@ -178,7 +177,7 @@ def test_cell_size_km_many(valid_locators):
     locs = rng.sample(valid_locators, min(5, len(valid_locators)))
     widths, heights = cell_size_km_many(locs)
     for loc, width, height in zip(locs, widths, heights):
-        exp_w, exp_h = cell_size_km(loc)
+        exp_w, exp_h = cell_size(loc, unit="km")
         assert width == pytest.approx(exp_w)
         assert height == pytest.approx(exp_h)
 
@@ -189,7 +188,7 @@ def test_cell_size_many_miles(valid_locators):
     widths, heights = cell_size_many(locs, unit="miles")
     miles_per_km = 0.621371
     for loc, width, height in zip(locs, widths, heights):
-        exp_w, exp_h = cell_size_km(loc)
+        exp_w, exp_h = cell_size(loc, unit="km")
         assert width == pytest.approx(exp_w * miles_per_km)
         assert height == pytest.approx(exp_h * miles_per_km)
 

@@ -9,7 +9,6 @@ from . import __version__
 from .core import (
     area_km2,
     cell_size,
-    cell_size_km,
     cover_circle,
     cover_line,
     diagonal_km,
@@ -906,8 +905,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     raise ValueError("--at-lat requires --unit km or miles")
                 width, height = cell_size(args.locator, unit=args.unit)
             else:
-                width, height = cell_size_km(
+                width, height = cell_size(
                     args.locator,
+                    unit="km",
                     at_lat=at_lat,
                     method=args.method,
                 )
@@ -1329,8 +1329,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     if args.unit == "deg":
                         width, height = cell_size(loc, unit="deg")
                     else:
-                        width, height = cell_size_km(
+                        width, height = cell_size(
                             loc,
+                            unit="km",
                             at_lat=args.at_lat,
                             method=args.method,
                         )

@@ -13,7 +13,6 @@ from maidenhead import (
     intersects_polygon,
     cell_size,
     cell_size_deg,
-    cell_size_km,
     area_km2,
     diagonal_km,
     children,
@@ -353,8 +352,8 @@ def test_cell_size_deg_matches_cell_size(sample_valid_locators):
 def test_cell_size_km_at_lat(sample_valid_locators):
     locs = sample_valid_locators(lengths=[2, 4, 6, 8, 10], seed=402)
     for loc in locs:
-        width_center, height_center = cell_size_km(loc)
-        width_at = cell_size_km(loc, at_lat=10.0)[0]
+        width_center, height_center = cell_size(loc, unit="km")
+        width_at = cell_size(loc, unit="km", at_lat=10.0)[0]
         assert height_center > 0
         assert width_center > 0
         assert width_at > 0

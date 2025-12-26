@@ -9,7 +9,6 @@ from .core import (
     azimuth,
     cell_size,
     cell_size_deg,
-    cell_size_km,
     from_latlon,
     normalize,
     parse,
@@ -653,7 +652,7 @@ def cell_size_km_many(
     method: str = "spherical",
     return_type: str = "auto",
 ) -> Any:
-    out = [cell_size_km(loc, at_lat=at_lat, method=method) for loc in locators]
+    out = [cell_size(loc, unit="km", at_lat=at_lat, method=method) for loc in locators]
     if return_type == "list":
         return out
     if return_type == "numpy":
@@ -680,7 +679,7 @@ def cell_size_many(
     if unit == "deg":
         out = [cell_size(loc, unit="deg") for loc in locators]
     else:
-        out = [cell_size_km(loc, at_lat=at_lat, method=method) for loc in locators]
+        out = [cell_size(loc, unit="km", at_lat=at_lat, method=method) for loc in locators]
     if unit == "miles":
         miles_per_km = 0.621371
         out = [(w * miles_per_km, h * miles_per_km) for w, h in out]
