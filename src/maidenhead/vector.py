@@ -75,6 +75,22 @@ def _make_numpy_float_array(length: int) -> Any:
     import numpy as np  # type: ignore
     return np.empty(length, dtype=float)
 
+
+def _listify(value: Any) -> list[Any]:
+    if _is_pandas_series(value):
+        return list(value)
+    if isinstance(value, list):
+        return value
+    return list(value)
+
+
+def _require_same_length(a: Any, b: Any, *, name_a: str, name_b: str) -> tuple[list[Any], list[Any]]:
+    a_list = _listify(a)
+    b_list = _listify(b)
+    if len(a_list) != len(b_list):
+        raise ValueError(f"{name_a} and {name_b} must have the same length")
+    return a_list, b_list
+
 def _from_latlon_numpy(lats: Any, lons: Any, *, precision: int) -> Any:
     import numpy as np  # type: ignore
     lats_arr = np.asarray(lats, dtype=float)
@@ -701,16 +717,7 @@ def azimuth_many(
     range_mode: bool = False,
     return_type: str = "auto",
 ) -> Any:
-    if _is_pandas_series(points_a):
-        a_list = list(points_a)
-    else:
-        a_list = list(points_a)
-    if _is_pandas_series(points_b):
-        b_list = list(points_b)
-    else:
-        b_list = list(points_b)
-    if len(a_list) != len(b_list):
-        raise ValueError("points_a and points_b must have the same length")
+    a_list, b_list = _require_same_length(points_a, points_b, name_a="points_a", name_b="points_b")
     out = [azimuth(a, b, range_mode=range_mode) for a, b in zip(a_list, b_list)]
     if return_type == "list":
         return out
@@ -785,7 +792,8 @@ def intersects_bbox_many(
     *,
     return_type: str = "auto",
 ) -> Any:
-    out = [intersects_bbox(loc, bbox) for loc, bbox in zip(locators, bboxes)]
+    loc_list, bbox_list = _require_same_length(locators, bboxes, name_a="locators", name_b="bboxes")
+    out = [intersects_bbox(loc, bbox) for loc, bbox in zip(loc_list, bbox_list)]
     if return_type == "list":
         return out
     if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
@@ -799,7 +807,8 @@ def intersects_polygon_many(
     *,
     return_type: str = "auto",
 ) -> Any:
-    out = [intersects_polygon(loc, poly) for loc, poly in zip(locators, polygons)]
+    loc_list, poly_list = _require_same_length(locators, polygons, name_a="locators", name_b="polygons")
+    out = [intersects_polygon(loc, poly) for loc, poly in zip(loc_list, poly_list)]
     if return_type == "list":
         return out
     if return_type == "pandas" or (return_type == "auto" and _is_pandas_series(locators)):
@@ -867,7 +876,11 @@ def contains_point_many(
     *,
     return_type: str = "auto",
 ) -> Any:
-    out = [contains_point(loc, lat, lon) for loc, lat, lon in zip(locators, lats, lons)]
+    loc_list, lat_list = _require_same_length(locators, lats, name_a="locators", name_b="lats")
+    lon_list = _listify(lons)
+    if len(lon_list) != len(loc_list):
+        raise ValueError("lons and locators must have the same length")
+    out = [contains_point(loc, lat, lon) for loc, lat, lon in zip(loc_list, lat_list, lon_list)]
     if return_type == "list":
         return out
     if return_type == "numpy":
@@ -887,7 +900,8 @@ def contains_many(
     *,
     return_type: str = "auto",
 ) -> Any:
-    out = [contains(outer, inner) for outer, inner in zip(outers, inners)]
+    outer_list, inner_list = _require_same_length(outers, inners, name_a="outers", name_b="inners")
+    out = [contains(outer, inner) for outer, inner in zip(outer_list, inner_list)]
     if return_type == "list":
         return out
     if return_type == "numpy":
@@ -939,7 +953,8 @@ def initial_bearing_many(
     *,
     return_type: str = "auto",
 ) -> Any:
-    out = [initial_bearing(a, b) for a, b in zip(locators_a, locators_b)]
+    loc_a, loc_b = _require_same_length(locators_a, locators_b, name_a="locators_a", name_b="locators_b")
+    out = [initial_bearing(a, b) for a, b in zip(loc_a, loc_b)]
     if return_type == "list":
         return out
     if return_type == "numpy":
